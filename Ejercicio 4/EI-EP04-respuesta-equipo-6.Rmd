@@ -1,0 +1,242 @@
+---
+title: "EP04-respuesta-equipo-6"
+author: "Grupo 6"
+date: "2025-09-11"
+output: html_document
+---
+
+#### 1. Se llevó a cabo una investigación entre dos grupos demográficos: residentes urbanos y suburbanos. Seleccionaron aleatoriamente 35 residentes urbanos y 30 residentes suburbanos, y se les preguntó sobre su preferencia de transporte para desplazarse en la ciudad entre tres opciones comunes, obteniéndose que de los primeros 8 usan el Metro, 12 usan bicicletas y 10 su vehículo particular. Mientras que entre los segundos 12 prefieren el Metro, 15 las bicicletas y 8 el vehículo particular. ¿Son iguales las distribuciones de las preferencias de transporte entre los dos grupos demográficos?
+
+Analizando los datos podemos observar que tenemos dos grupos independientes y una variable categórica con más de 2 niveles que son las 3 categorias de transporte , por lo tanto la prueba adecuada para este caso es la chi-cuadrado de Pearson de homogeneidad que nos permite observar si la distribución de preferencias es igual en ambos grupos:
+
+Creamos la tabla de contingencia para mostrar la frecuencia de cada observación usando el script 8.2 de la lectura 5 como referencia (la cual también usaremos como referencia en las partes siguientes de la investigación):
+
+```{r setup}
+#Creamos la tabla de contingencia con los datos entregados en el enunciado
+residentesUrbanos <- c(12, 15, 8)
+residentesSubUrbanos <- c(8, 12, 10)
+tablaTransporte <- as.table(rbind(residentesUrbanos, residentesSubUrbanos))
+dimnames(tablaTransporte) <- list(residentes = c("residentesUrbanos", "residentesSubUrbanos"),
+                                  preferencia = c("Metro", "Bicicleta", "Vehículo particular"))
+print(tablaTransporte)
+```
+
+Antes de realizar la prueba chi-cuadrado de Pearson de homogeneidad, debemos confirmar que se cumplen las condiciones necesarias para la realización de esta prueba:
+
+  1. Las observaciones deben ser independientes entre si. Esta condición se cumple gracias a que en el enunciado se menciona que los residentes se seleccionaron aleatoriamente, por ende, las respuestas de uno no afectan a las respuestas de otro. Además, la muestra tiene un total de 65 observaciones, lo cual claramente es menor al 10% de la población.
+  
+  2. Debe haber a lo menos 5 observaciones esperadas en cada grupo. Esta condición la verificamos calculando las observaciones esperadas, lo cual vamos a realizar a continuación.
+  
+```{r}
+#Definimos la condición de frecuencia esperada
+minFrecEsperada <- 5
+
+#Obtenemos las frecuencias esperadas
+sumasFilas <- apply(tablaTransporte, 1, sum)
+sumasCols <- apply(tablaTransporte, 2, sum)
+sumaTotal <- sum(tablaTransporte)
+esperadas <- outer(sumasFilas, sumasCols, "*") / sumaTotal
+esperadas <- round(esperadas, 1)
+dimnames(esperadas) <- list(residentes = c("residentesUrbanos", "residentesSubUrbanos"),
+                                  preferencia = c("Metro", "Bicicleta", "Vehículo particular"))
+print(esperadas)
+
+salidas <- c()
+salidas <- c(salidas, paste("Frecuencias esperadas bajo ", minFrecEsperada))
+salidas <- c(salidas, paste(": ", sum(esperadas < minFrecEsperada), "\n"))
+cat(salidas)
+```
+
+  2.1. Como se puede observar en la tabla de contingencia de frecuencias esperadas y más abajo en la cantidad de frecuencias esperadas bajo 5, no hay ninguna frecuencia esperada que no cumpla con la condición, por ende, esta condición también se cumple.
+
+Ya que se cumplen todas las condiciones para realizar la prueba, podemos proceder a plantear las hipótesis a contrastar en esta investigación:
+
+$H_0$: La distribución de las preferencias de transporte es la misma en los residentes urbanos y suburbanos.
+
+$H_a$: La distribución de las preferencias de transporte difiere entre los residentes urbanos y suburbanos.
+
+Una vez definidas las hipótesis, realizamos la prueba correspondiente con un nivel de significancia $\alpha$ de 0.05:
+
+```{r}
+#Realizamos el test chi-cuadrado
+testTransporte<- chisq.test(tablaTransporte)
+print(testTransporte)
+```
+
+Dado que el valor p = 0.614 es mayor al nivel de significancia $\alpha$ establecido, no hay evidencia suficiente para poder rechazar la hipótesis nula en favor de la hipótesis alternativa. En consecuencia, podemos concluir con un 95% de confianza que no existen diferencias significativas en ambos grupos demograficos.
+
+#### 2. Un hotel está implementando un nuevo protocolo de limpieza para mejorar la calidad de servicio y la satisfacción de sus huéspedes. Para evaluar la efectividad de este protocolo, se seleccionaron aleatoriamente 25 habitaciones y se aplicó el protocolo de limpieza antiguo y nuevo de forma alternada. Después de la primera limpieza, se evaluó la calidad de limpieza de cada habitación. Luego, después de la segunda limpieza con el protocolo alternativo, se volvió a evaluar la calidad de limpieza. Los resultados se presentan a continuación:
+
+##### • 5 habitaciones mostraron una calidad de limpieza baja en ambas ocasiones.
+ 
+##### • 5 habitaciones con calidad de limpieza baja con el protocolo antiguo mostraron una mejora con el nuevo.
+ 
+##### • 8 habitaciones mantuvieron una alta calidad de limpieza con ambos protocolos.
+ 
+##### • 7 habitaciones mostraron una alta calidad de limpieza con el protocolo antiguo, pero una disminución con el protocolo nuevo.
+
+#### ¿Hay evidencia de que el nuevo protocolo de limpieza haya tenido un efecto significativo en la calidad de limpieza de las habitaciones del hotel?
+
+Para responder la pregunta analizamos los datos y observamos que estamos en presencia de muestras con frecuencia apareada, ya que cada habitación fue medida en dos ocaciones (protocolo antiguo y nuevo). Entonces, la prueba adecuada para este caso es prueba de McNemar.
+
+Antes de realizar la prueba de McNemar, debemos confirmar que se cumplen las condiciones necesarias para la realización de esta prueba, sin embargo, en la lectura donde se explica esta prueba (Lectura 05) no se especifica cuales son estas condiciones, no obstante, ya que si se especifican las condiciones de la prueba Q de Cochran y, según la misma lectura, esta es una extensión de la prueba de McNemar, las condiciones necesarias para la prueba de McNemar son las mismas que las condiciones necesarias para la prueba Q de Cochran, y estas son:
+
+  1. La variable de respuesta es dicotómica. Esta condición se cumple gracias a que se especifica en el enunciado que la variable de respuesta solo tiene dos alternativas, baja y alta, osea, cumple con ser una variable dicotómica.
+  
+  2. La variable independiente es categórica. Esta condición también se cumple gracias a que se especifica en el enunciado ya que se menciona que quiere saber si hay diferencia entre el protocolo de limpieza antiguo y nuevo, osea, "Antiguo" y "Nuevo", las cuales son tres variables categoricas nominales, ya que no hay un orden de niveles entre ellas.
+  
+  3. Las observaciones son independientes entre sí. Esta condicion, al igual que las anteriores, se cumple gracias al enunciado, ya que menciona que se eligieron habitaciones al azar, osea, que una habitación tenga una calidad de limpieza alta o baja no influye en que otra tenga una calidad de limpieza alta o baja.
+  
+La cuarta condicón no se tomó en cuenta ya que se toma en cuenta la cantidad de elementos que hay en la variable independiente, por lo demás, se cumplen todas las condiciones para realizar la prueba.
+
+Ya que se cumplen todas las condiciones para realizar la prueba, podemos plantear las hipotesis, las cuales son:
+
+$H_0$: No hay diferencia significativa en la calidad de limpieza entre el protocolo antiguo y el nuevo.
+
+$H_a$: Existe una diferencia significativa en la calidad de limpieza entre el protocolo antiguo y el nuevo.
+
+Para aplicar la prueba, creamos la tabla de contingencia.
+
+```{r}
+limpieza <- matrix(c(5,5,7,8), nrow=2, byrow=TRUE,
+                   dimnames = list("Antiguo"=c("Baja","Alta"),
+                                   "Nuevo"=c("Baja","Alta")))
+print(limpieza)
+```
+
+Y aplicamos la prueba con un nivel de significancia $\alpha$ de 0.05 y con factor de correción de continuidad: 
+
+```{r}
+# Prueba de McNemar
+test_limpieza <- mcnemar.test(limpieza, correct = TRUE)
+print(test_limpieza)
+```
+
+Dado que el valor p = 0.773 es mayor al nivel de significancia $\alpha$ establecido, no hay evidencia suficiente para poder rechazar la hipótesis nula en favor de la hipótesis alternativa. En consecuencia, podemos concluir con un 95% de confianza que no hay diferencia significativa en la calidad de limpieza entre el protocolo antiguo y el nuevo.
+
+#### 3. Una agencia de marketing desea determinar si hay una diferencia significativa en la efectividad de tres estrategias publicitarias utilizadas para promocionar un nuevo producto. Para ello, se ha recopilado información de personas que fueron expuestas a las tres estrategias publicitarias, registrando si mostraron una aceptación (A) o rechazo (R) a cada una de ellas. ¿Qué puede concluir la agencia de marketing sobre la efectividad de las estrategias publicitarias para promover el nuevo producto? Indicación: obtenga la muestra de 50 personas a partir del archivo “EP04 Datos.csv” que se encuentra en el directorio compartido, usando la semilla 108. Considere un nivel de significación α = 0,05.
+
+Antes de buscar si la efectividad de las estrategias publicitarias para promover su nuevo producto son diferentes en proporción, hay que definir el tipo de prueba a usar. Desglosando la pregunta, podemos ver que al inicio se indica que se quiere ver si hay una diferencia significativa entre las tres estrategias de promoción utilizadas, si a esto le sumamos lo que dice después, lo cual es que a cada estrategia se le asignó una variable dicotómica en donde el encuestado decia si aceptaba o rechazaba cada una de las estrategia, tenemos que las frecuencias son apareadas, ya que cada encuestado respondia con una respuesta dicotómica a diferentes situaciones (diferentes estrategias) para el mismo grupo de casos (estrategias publicitarias). En este caso tenemos dos alternativas, usar la prueba de McNemar o la prueba Q de Cochran, usaremos la segunda opción ya que, como lo dice en el enunciado, hay más de dos observaciones apareadas (en este caso hay tres).
+
+Antes de realizar la prueba Q de Cochran, debemos confirmar que se cumplen las condiciones necesarias para la realización de esta prueba:
+
+  1. La variable de respuesta es dicotómica. Esta condición se cumple debido a que se menciona en el enunciado y está verificado en el archivo con los datos (los cuales mostraremos más adelante) que las únicas respuestas posibles son A (Aceptación) y R (Rechazo)
+  
+  2. La variable independiente es categórica. Esta condición también se cumple debido al enunciado, ya que se menciona que se quiere saber si hay diferencia entre tres estrategias de marketing, osea, "Estrategia 1", "Estrategia 2" y "Estrategia 3", las cuales son tres variables categoricas nominales, ya que no hay un orden de niveles entre ellas.
+  
+  3. Las observaciones son independientes entre si. Esta condición es un poco más complicada de confirmar ya que no lo dice explicitamente en el enunciado, sin embargo, ya que se trata de una agencia de marketing que intenta buscar la mejor estrategia para vender un producto, buscará una recolección de datos fidedigna, por ende, se puede decir que la respuesta de una persona no influye en la respuesta de otra, osea, las observaciones son independientes entre si. Además, el tamaño de la muestra (50) es mucho menor al 10% de la población mundial.
+  
+  4. El tamaño de la muestra es lo suficientemente grande. Glen sugiere que $n_b*n_t ≥ 24$ (Lectura 05, página 22), donde $n_b$ es el número de “bloques” en que se organizan las observaciones (número de entrevistados) y $n_t$ es la cantidad de tratamientos estudiados (cantidad de estrategias analizadas). Esta condición es facil de analizar ya que en el enunciado se explica que se toman 50 muestras de los encuestados ($n_b$) y son tres estrategias publicitarias que se quieren analizar ($n_t$), por ende, $50*3 = 150$ y eso es mayor a 24, por lo tanto, esta condición también se cumple.
+  
+Ya que se cumplen todas las condiciones para realizar la prueba, podemos comenzar con esta. Para empezar a desarrollar la prueba Q de Cochran debemos cargar los datos a estudiar, esto lo haremos mediante la función read.csv2(), aunque antes de cargarlos, debemos usar una semilla ya que solo debemos obtener 50 muestras de todas las que hay. Como se dice en el enunciado, usaremos la semilla 108 para que la investigación se pueda repetir.
+
+```{r}
+#Seteamos la semilla 108
+set.seed(108)
+
+#Leemos los datos desde el archivo csv
+datos <- read.csv2("EP04 Datos.csv")
+
+muestra50 <- datos[sample(nrow(datos), 50), ]
+
+#Mostramos alguno de los datos para verificar que se cargó correctamente
+head(muestra50)
+#Mostramos el número de columnas para comprobar que efectivamente se escogieron 50 muestras
+nrow(muestra50)
+```
+
+Luego, verificamos los tipos de las variables del conjunto.
+
+```{r, message=FALSE}
+library(dplyr)
+
+glimpse(muestra50)
+```
+
+Como se puede observar los tipo de datos son los correctos, sin embargo, ya que las variables dicotómicas las vamos a utilizar para analizarlas, las convertiremos a factor para un mejor manejo de estas y se mostrarán nuevamente para confirmar que se cambió el tipo de dato.
+
+```{r}
+#Modificamos el tipo de dato de estrategia_1, estrategia_2 y estrategia_3
+muestra50[["estrategia_1"]] <- factor(muestra50[["estrategia_1"]])
+muestra50[["estrategia_2"]] <- factor(muestra50[["estrategia_2"]])
+muestra50[["estrategia_3"]] <- factor(muestra50[["estrategia_3"]])
+
+glimpse(muestra50)
+```
+
+Una vez que los datos están listos, procederemos a plantear las hipótesis a contrastar en esta investigación:
+
+$H_0$: La proporción de encuestados que aprobaron la estrategia publicitaria es la misma para todas las estrategias. Matematicamente está descrito como: $p_{e1} = p_{e2} = p_{e3}$ donde $p_{e1}$ es la proporción de de encuestados que aprobaron la estrategia 1, $p_{e2}$ es la proporción de de encuestados que aprobaron la estrategia 2 y $p_{e3}$ es la proporción de de encuestados que aprobaron la estrategia 3.
+
+$H_a$: La proporcaión de encuestados que aprobaron la estrategia publicitaria es diferente para al menos una de las estrategias publicitarias. Matematicamente está descrito como: $\exists i,j \in \{e1, e2, e3\}, i \neq j | \mu_i \neq \mu_j$, donde e1, e2 y e3 son las estrategias 1, 2 y 3 respectivamente.
+
+Ya listos los datos y las hipótesis nula y alternativa, definimos un $\alpha$ y procedemos con la prueba. Cabe mencionar que se usa el script 8.7 de la lectura 05 como base para convertir la muestra a formato largo.
+
+```{r, warning=FALSE, message=FALSE}
+library(rcompanion)
+library(RVAideMemoire)
+library(tidyr)
+
+#Definimos el alfa
+alfa <- 0.05
+
+#Asignamos un ID a cada encuestado
+
+#Reestructuramos los datos para que tengan formato largo
+muestra50Largo <- muestra50 |>
+  pivot_longer(c("estrategia_1", "estrategia_2", "estrategia_3"),
+               names_to = "Estrategia", values_to = "Resultado") |>
+  mutate_at(c("id", "Estrategia"), as.factor)
+
+#Realizamos la prueba Q de Cochran
+pruebaQc <- cochran.qtest(Resultado ~ Estrategia | id, data = muestra50Largo, alpha = alfa)
+
+#Mostramos los resultados de la prueba
+cat("Resultado de la prueba Q de Cochran:")
+print(pruebaQc)
+```
+
+Como se puede observar, el valor p = 0.789 es bastante mayor al nivel de significancia $\alpha$ establecido, por lo que no hay evidencia suficiente para poder rechazar la hipótesis nula en favor de la hipótesis alternativa. En consecuencia, podemos concluir con un 95% de confianza que la proporción de encuestados que aprobaron la estrategia publicitaria es la misma para todas las estrategias.
+
+#### 4. Durante un apocalipsis zombie, un grupo de 10 mujeres y 15 hombres sobrevivientes se encuentra buscando desesperadamente refugio y encuentran dos edificios abandonados que podrían servir: una escuela y un centro comercial. Algunas personas piensan que la escuela es más segura, mientras que otras consideran que el centro comercial es más seguro. Después de elegir sus opciones, se observa que 5 mujeres y 4 hombres eligen refugiarse en la escuela abandonada mientras que los otros optan por el centro comercial. ¿Hay relación entre el sexo de la persona y el edificio abandonado que encuentra más seguro?
+
+Para ver si hay relación entre el sexo de la persona y el edificio abandonado que encuentra más seguro, primero hay que buscar el tipo de prueba que sirve para este caso. Como se puede observar en el enunciado, hay dos variables dicotómicas: el sexo de las personas y el refugio, y ya que se quiere saber si hay alguna asociación entre estos, la prueba que realizaremos será la prueba exacta de Fisher, debido a que esta prueba se dedica a buscar si existe asociación entre dos variables dicotómicas.
+
+Para comenzar, debemos verificar que se cumplan las condiciones necesarias para realizar esta prueba:
+
+  1. El estudio plantea el cruce de dos variables binarias. Esta condición se cumple, ya que como se explicó anteriormente, sexo (Hombre o Mujer) y refugio (Escuela abandonada, Centro comercial) son variables dicotómicas.
+  
+  2. Las observaciones son independientes entre si. El enunciado no es muy claro sobre si los votos fueron anonimos o simplemente votaron a mano alzada, pero podemos asumir que en cualquiera de los dos casos, cada integrante del grupo votó por el beneficio de su propia supervivencia, osea, el voto de uno no influye en el voto de otro, por ende, las observaciones son independientes entre si, además, pese a que la población mundial debe ser muy menor a la de un mundo sin zombies, 25 personas aún debe ser mucho menor al 10% de la población.
+  
+  3. Si bien no es una condición como tal, podemos verificar que la muestra es pequeña para que sea factible realizar la prueba en un tiempo razonable. Como se mencionó en el punto 2, las observaciones son 25, lo cual se puede considerar como pequeña.
+
+Continuando con la investigación, realizaremos la tabla de contingencia para mostrar las observaciones. Cabe mencionar que tambien usamos como base un script de la lectura 05, más especificamente el script 8.1.
+
+```{r}
+#Construimos los datos y la tabla de contingencia
+mujeres <- c(rep("Escuela abandonada", 5), rep("Centro comercial", 5))
+hombres <- c(rep("Escuela abandonada", 4), rep("Centro comercial", 11))
+Eleccion <- c(mujeres, hombres)
+Resultado <- c(rep("Mujer", 10), rep("Hombre", 15))
+Resultado <- factor(Resultado, levels = c("Mujer", "Hombre"))
+datosElec <- data.frame(Resultado, Eleccion)
+tabla <- xtabs(~., datosElec)
+print(tabla)
+```
+
+Una vez realizada la tabla de contingencia y la verificación de las condiciones, podemos proceder con el planteamiento de las hipótesis a contrastar en esta investigación:
+
+$H_0$: El resultado de la elección del edificio abandonado no está asociado al sexo de la persona.
+
+$H_a$: El resultado de la elección del edificio abandonado depende del sexo de la persona.
+
+Ya definidas las hipótesis a contrastar, podemos realizar la prueba exacta de Fisher con un nivel de significancia $\alpha$ de 0.025, se escoge un nivel de significancia pequeño ya que como de esta desición dependen sus vidas, es mejor tomar en cuenta todos los factores posibles, sin embargo, no es tan pequeño debido al riesgo de cometer un error tipo II.
+
+```{r}
+#Aplicamos la prueba exacta de Fisher a la tabla de contingencia
+fisher <- fisher.test(tabla, alternative = "two.sided", conf.level = 0.025)
+cat ("Prueba exacta de Fisher usando la tabla de contingencia")
+print(fisher)
+```
+
+Como se puede observar, el valor p = 0.397 es mayor al nivel de significancia $\alpha$ establecido, por lo que no hay evidencia suficiente para poder rechazar la hipótesis nula en favor de la hipótesis alternativa. En consecuencia, podemos concluir con un 97.5% de confianza que el resultado de la elección del edificio abandonado no está asociado al sexo de la persona.

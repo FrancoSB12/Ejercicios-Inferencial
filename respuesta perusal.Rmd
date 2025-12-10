@@ -1,0 +1,16 @@
+---
+title: "Untitled"
+author: "Daniel Monares - Franco Saravia"
+date: "2025-08-31"
+output: html_document
+---
+
+```{r setup, warning=FALSE}
+#Se importa la libreria
+library(WebPower)
+
+#Se realiza la prueba
+poder <- wp.rmanova(n = 16, ng = 1, nm = 3, f = 0.943, nscor = 0.855, type = 1)
+
+```
+

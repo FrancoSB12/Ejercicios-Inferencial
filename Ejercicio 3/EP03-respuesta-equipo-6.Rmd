@@ -1,0 +1,248 @@
+---
+title: "EP03-respuesta-equipo-6"
+author: "Equipo 6"
+date: "2025-09-03"
+output: html_document
+---
+
+Considerando la situación planteada a continuación:
+
+En una planta química hay dos máquinas que envasan detergentes industriales en bidones con un volumen de producto que sigue una distribución normal con desviación estándar de 1 litro. La ingeniera a cargo de la planta debe asegurar que los bidones se están llenando con una media de 10 litros. Pero ella tiene la sospecha de que hay desviaciones en esta media, lo que piensa confirmar usando una muestra aleatoria de 100 envases (50 de cada una de las máquinas). También cree que hay diferencia en el cumplimiento del volumen requerido entre la máquina más antigua y la más moderna, que han de andar por el 90% y 96% de los bidones, respectivamente.
+
+Se procederan a responder las siguientes preguntas:
+
+#### 1. Si la ingeniera está seguro de que el verdadero volumen medio no puede ser superior a 10 litros y piensa rechazar la hipótesis nula cuando la muestra presente una media menor a 9,82 litros, ¿cuál es la probabilidad de que cometa un error de tipo I? Para responder, generen un gráfico de la distribución muestral de las medias hipotetizada en donde se marque la zona correspondiente a la probabilidad solicitada, para luego, basándose en este gráfico, calcular el área correspondiente. Tome como ejemplo los scripts presentados en la lectura sobre poder estadístico.
+
+Como se menciona en la pregunta utilizaremos los scripts de los gráficos que están en la lectura, modificados con los datos que tenemos actualmente. Interpretando los datos entregados, se puede decir que "el verdadero volumen medio no puede ser superior a 10 litros" se refiere a que se debe realizar una prueba unilateral de cola inferior ya que el verdadero valor medio no peude tomar valores mayores a 10, también la forma en la que se puede rechazar la hipótesis nula es que p esté fuera del intervalo de confianza, por ende, "piensa rechazar la hipótesis nula cuando la muestra presente una media menor a 9,82 litros" se refiere a que el limite inferior del intervalo de confianza de la distribución del valor nulo es 9,82 litros. Dicho esto, procedemos a realizar el gráfico:
+
+```{r setup, warning=FALSE}
+#Importamos las librerias necsarias para la creación de los gráficos
+library(ggpattern)
+library(ggpubr)
+
+#Definimos los valores mencionados en el enunciado
+n <- 100
+mediaNula <- 10
+sigma <- 1
+limiteInferior <- 9.82
+
+#Calculamos el error estandar
+SE <- sigma / sqrt(n)
+
+#Primero, se realiza el gráfico base
+gXLimites <- mediaNula + c(-7, 7) * SE
+g <- ggplot() + xlim(gXLimites) + ylim(c(0, 5))
+g <- g + labs(title = "Distribución muestral de las medias", x = "Litros", y = "Densidad")
+g <- g + theme_pubr()
+
+#Agregamos la hipótesis nula
+dist <- stat_function(fun = dnorm, geom = "area",
+                       args = list(mean = mediaNula, sd = SE),
+                       colour = "steelblue4", fill = "steelblue4", alpha = 0.2)
+g1 <- g + dist
+g1 <- g1 + geom_vline(xintercept = mediaNula, colour = "steelblue4")
+
+#Convertimos el limite inferior a un z critico para su mejor entendimiento
+zCriticoInferior <- limiteInferior
+
+#Graficamos la cola inferior
+g2 <- g1 + stat_function(fun = dnorm, geom = "area",
+                        args = list(mean = mediaNula, sd = SE),
+                        xlim = c(gXLimites[1], zCriticoInferior),
+                        fill = "steelblue4", alpha = 0.4)
+
+print(g2)
+```
+
+Una vez obtenido el grafico, procederemos a obtener el valor númerico de $α$ calculando el area de la zona sombreada con la función pnorm() ya que regresa la probabilidad acumulada hasta un punto (en este caso, hasta el limite inferior).
+
+```{r}
+alfa <- pnorm(limiteInferior, mean = mediaNula, sd = SE, lower.tail = TRUE)
+cat(paste("Alfa = ", alfa, "\n"))
+```
+
+Como muestra el resultado el valor de alfa es 0.036 aproximadamente, por ende, la probablilidad de que la ingeniera cometa un error de tipo I es de 3.6%.
+
+#### 2. Si el verdadero volumen medio de los bidones fuera de 9,7 litros, ¿cuál sería la probabilidad de que la ingeniera, que obviamente no conoce este dato, cometa un error de tipo II? Para responder, agregue al gráfico anterior la verdadera distribución muestral de las medias y marquen (con otro color) la zona correspondiente a la probabilidad solicitada, para luego, basándose en este gráfico, calcular el área correspondiente. También hay ejemplos de este procedimiento en la lectura sobre poder estadístico.
+
+Para comenzar, como se menciona en el enunciado, además de usar los datos de la pregunta anterior, le agregaremos al gráfico anterior la distribución normal del verdadero volumen medio para determinar la probabilidad de cometer un error tipo II ($β$) y usaremos los ejemplos de la lectura 4 para guiarnos en la construcción del gráfico. Dicho esto, procedemos a realizar el gráfico:
+
+```{r}
+#Definimos los valores verdaderos
+mediaVerdadera <- 9.7
+delta <- mediaNula - mediaVerdadera
+
+#Agregamos la verdadera distribución muestral de las medias al grafico g2
+g3 <- g2 + stat_function(fun = dnorm, geom = "area",
+                        args = list(mean = mediaVerdadera, sd = SE),
+                        colour = "steelblue1", fill = "steelblue1", alpha = 0.2)
+
+g3 <- g3 + geom_vline(xintercept = mediaVerdadera, colour = "steelblue1")
+
+#Agregamos la anotación del el tamaño del efecto (delta) y lo mostramos en el gráfico
+xAnn <- c(mediaVerdadera, mediaNula)
+yAnn <- c(dnorm(mediaVerdadera, mean = mediaVerdadera, sd = SE),
+          dnorm(mediaNula, mean = mediaNula, sd = SE))
+yAnn <- yAnn + 0.005
+
+g4 <- g3 + annotate("segment", x = xAnn[1], y = yAnn[1],
+                   xend = xAnn[2], yend = yAnn[2],
+                   arrow = arrow(angle = 10, length = unit(0.03, "npc"),
+                                 ends = "both", type = "open")) +
+           annotate("text", x = mean(xAnn), y = yAnn[1] + 0.015,
+                   label = "delta", vjust = "top", parse = TRUE)
+
+#Traspasamos las regiones críticas a la verdadera distribución muestral de las medias
+g5 <- g3 + stat_function(fun = dnorm, geom = "area",
+                        args = list(mean = mediaVerdadera, sd = SE),
+                        xlim = c(gXLimites[1], zCriticoInferior),
+                        fill = "steelblue1", alpha = 0.4)
+
+g5 <- g5 + stat_function(fun = dnorm, geom = "area_pattern",
+                         args = list(mean = mediaVerdadera, sd = SE),
+                         xlim = c(zCriticoInferior, 10), #El limite superior de x es 10 porque lo dice en el enunciado de la pregunta anterior
+                         fill = "white", colour = "steelblue1", alpha = 0.3,
+                         pattern_spacing = 0.15, pattern_density = 0.4,
+                         pattern_fill = "steelblue1", pattern_colour = "steelblue1",
+                         pattern_angle = 45, pattern_alpha = 0.3)
+
+#Agregamos anotaciones del poder y beta dentro del rango (evita warnings)
+g5 <- g5 + annotate("text", x = 9.7, y = 1.5, label = "poder[inf]", parse = TRUE) +
+           annotate("text", x = 9.86, y = 0.50, label = "beta", parse = TRUE)
+
+print(g5)
+```
+
+Una vez obtenido el gráfico, al igual que en la pregunta 1 procederemos a obtener el valor númerico de $β$ calculando el area del poder con la función pnorm() para luego restarle a 1 ese valor y obtener $β$. Cabe destacar que solo se calcula el poder inferior ya que, como se mencionó anteriormente, no hay valor de $α$ en la cota superior.
+
+```{r}
+#Calculamos y mostramos el poder y beta
+poderInf <- pnorm(zCriticoInferior, mean = mediaVerdadera, sd = SE, lower.tail = TRUE)
+cat(paste("Poder = ", poderInf, "\n"))
+
+beta <- 1 - poderInf
+cat(paste("Beta = ", beta, "\n"))
+```
+
+Como podemos observar, el resultado el valor de beta es 0.115 aproximadamente, por ende, la probablilidad de que la ingeniera cometa un error de tipo II es de 11.5%.
+
+#### 3. Como no se conoce el verdadero volumen medio, genere un gráfico del poder estadístico con las condiciones anteriores, pero suponiendo que el verdadero volumen medio podría variar de 9,3 a 10 litros. Hay un ejemplo de este tipo de gráfico en la lectura sobre poder estadístico.
+
+Al igual que en las otras 2 preguntas, utilizaremos de guia los ejemplos de la lectura 4 para poder realizar el gráfico solicitado, también usaremos los datos de las preguntas anteriores. Como dato adicional, ya que se quiere un gráfico en base a un rango de volumenes medios que podrian ser verdaderos, se usará la relación entre el poder y el tamaño del efecto, ya que el tamaño del efecto cambia con cada valor posible del rango de volumenes medios verdaderos. Dicho esto, procedemos a realizar el gráfico:
+
+```{r}
+library(ggplot2)
+
+#Mostramos los datos ya obtenidos para no tener que buscarlos
+salidas <- c()
+salidas <- c(salidas, paste("Muestras = ", n))
+salidas <- c(salidas, paste("Media nula = ", mediaNula))
+salidas <- c(salidas, paste("Desviación estandar = ", sigma))
+salidas <- c(salidas, paste("Límite inferior = ", limiteInferior))
+salidas <- c(salidas, paste("Error estandar = ", SE))
+salidas <- c(salidas, paste("Alfa = ", alfa))
+cat(salidas, sep = "\n")
+
+#Definimos el tamaño del efecto
+mediasVerdaderas <- seq(9.3, 10, 0.01)
+deltas <- mediasVerdaderas - mediaNula
+deltasNormalizados <- deltas / sigma
+```
+
+Antes de realizar el gráfico mencionaremos que usaremos la función pwr.norm.test() para poder tener el poder, sin embargo, para poder usarla se requieren algunas condiciones que revisaremos: 
+
+1. La variable de interes debe seguir (o aproximarse) a una distribución normal, lo cual se cumple ya que se menciona en el enunciado.
+
+2. La $σ$ poblacional debe ser conocida y fija, esto también se cumple ya que, al igual que el punto 1, se menciona en el enunciado, teniendo un valor de 1 litro.
+
+3. El muestreo debe ser aleatorio y los datos independientes, esto también se menciona en el enuncadio al momento de decir "lo que piensa confirmar usando una muestra aleatoria de 100 envases", y ya que las muestras son envases llenados, también se puede decir que la toma de una muestra no afecta al resto.
+
+Ya que se cumplen las 3 condiciones, solo queda decir que ya que solo se toma en cuenta la cola inferior, la prueba realizada será unilateral. Dicho esto, procederemos a realizar el grafico:
+
+```{r, warning=FALSE}
+library(pwr)
+library(tidyr)
+
+#Definimos la fuincion para calcular el poder de la prueba z unilateral de cola inferior
+f_pzl <- function(x){
+  pwr.norm.test(d = x, n = n, sig.level = alfa, alternative = "less")[["power"]]
+}
+poderUnilat <- sapply(deltasNormalizados, f_pzl)
+
+#Preparamos los datos, en este caso da lo mismo usar los deltas normales o normalizados ya que sigma al ser 1, la division es por 1, osea, no cambia
+datos <- data.frame(deltas, poderUnilat)
+
+#Graficamos la curva unilateral
+g6 <- ggplot(datos, aes(x = deltas, y = poderUnilat)) + geom_line(color = "steelblue", size = 1) +
+  labs(title = "Poder estadístico para un rango de volumen medio verdadero", x = "Delta", y = "poder") +
+  theme_minimal()
+
+print(g6)
+```
+
+Como se puede observar en el gráfico, mientras más distancia exista entre la media verdadera y nula, más poder estadístico hay para realizar la prueba Z. 
+
+#### 4. Considerando un volumen medio de 10 litros, ¿cuántos bidones deberían revisarse para conseguir un poder estadístico de 0,8 y un nivel de significación de 0,05?
+
+Para comenzar, queremos saber cual seria el tamaño necesario de la muestra para que una prueba de hipótesis para la media tenga un poder de 0.8 con un nivel de significancia del 0.05. Para saber cuantos bidones deberiamos usar de muestra se utilizará la función pwr.norm.test(), ya que como se mencionó en la pregunta 3, el problema cumple con los requisitos para usarla.
+
+Antes de realizar la prueba primero debemos definir las hipótesis para ver si se necesita una prueba bilateral o unilateral, ya que se considera que el volumen medio es de 10 litros, las hipóteis serian:
+
+$H_{0}$ = El volumen medio de los bidones es de 10 litros, matematicamente está descrito como: $\mu = 10$ **litros**
+
+$H_{a}$ = El volumen medio de los bidones es diferente a 10 litros, matematicamente está descrito como: $\mu \neq 10$ **litros**
+
+Como se puede observar, la prueba se debe reailizar con 2 colas (bilateral). Una vez definidas las hipótesis y el tipo de prueba a usar, se realizan los calculos y dejaremos el resultado completo para la transparencia de que sí se usaron los datos entregados. Primero obtendremos el valor de d, el cual se puede obtener a través de la función pwr.norm.test() también, para obtenerlo usaremos el n entregado en el enunciado, el alfa y el poder entregado en la actual pregunta y el tipo de prueba será unilateral de cola inferior ya que estamos buscando un d especifico que tambien está en el gráfico de la pregunta 3, por ende el tipo de prueba debe ser el mismo. Luego ya con todos los datos obtenidos procederemos a usar la función pwr.norm.test() para obtener la cantidad de meustras que se deben tener.
+
+```{r}
+#Guardamos los nuevos datos
+significancia <- 0.05
+poder <- 0.8
+
+#Buscamos el valor de d cuando se tiene un nivel de significancia del 0.05 y un poder de 0.8
+d <- pwr.norm.test(n = n, sig.level = alfa, power = poder, alternative = "less")$d
+
+resultado <- pwr.norm.test(d = d, sig.level = significancia, power = poder, alternative = "two.sided")
+
+print(resultado)
+```
+
+Como se puede observar se necesitarian 112.48 muestras para poder tener un poder de 0.8 y un nivel de significancia de 0.05, ya que no se pueden tener fracciones de muestras optamos por redondear las muestras a 113, ¿por qué decidimos redondear hacia arriba? porque así el poder no es menor al requerido.
+
+#### 5. ¿Alcanzaría esta muestra para detectar la diferencia que la ingeniera sospecha que existe entre las dos máquinas de la planta con al menos las mismás probabilidades de cometer errores?
+
+Para saber si alcanza esta muestra para detectar la diferencia que la ingeniera sospecha que existe entre las dos máquinas con las mismás probabilidades de cometer los errores (mismo $α$ y $β$) se busca la potencia de la prueba. Como dato adicional responderemos esta pregunta en base al enunciado de la pregunta 4, ya que nos pide si la nueva muestra logra detectar alguna diferencia entre las maquinas, es decir, buscar la potencia de la prueba de proporciones de esta, asi que en consecuencia usaremos el alfa dado y el tamaño de muestras n que se obtuvo en la pregunta anterior.
+
+Para buscar la potencia de la prueba, primero debemos declarar las hipótesis para determinar si la prueba se realizará con 1 o 2 colas, ya que se busca detectar una diferencia las hipótesis serian:
+
+$H_{0}$ = No hay diferencia entra las maquinas de la planta, al menos con las mismás probabilidades de cometer errores, matematicamente está descrito como: $p_{m1} = p_{m2}$
+
+$H_{a}$ = Hay diferencia entra las maquinas de la planta, al menos con las mismás probabilidades de cometer errores, matematicamente está descrito como: $p_{m1} \neq p_{m2}$
+
+Como se puede observar, la prueba se debe realizar con 2 colas. Ahora enfocandonos en encontrar la potencia, primero debemos buscar la h de Cohen, utilizando la función en R que se encarga de esto tenemos:
+
+```{r}
+#Usamos 113 debido al redondeo del tamaño de la muestra en la pregunta 4 y su posterior explicación
+n2 <- 113
+alfa <- 0.05
+
+#Declaramos las proporciones definidas en el enunciado (90% para la maquina 1 y 96% para la maquina 2)
+propM1 <- 0.90
+propM2 <- 0.96
+
+#Obtenemos el h de Cohen
+h <- ES.h(propM1, propM2)
+```
+
+Una vez obtenida la h de Cohen, podemos proceder a usar la función pwr.2p.test() para poder obtener la potencia de la prueba, se usa esta prueba ya que se comparan 2 proporciones con igual tamaño de muestras:
+
+```{r}
+#Realizamos el test de potencia de la prueba de la diferencia de 2 proporciones donde ambas muestras son de igual tamaño
+pwr.2p.test(h = h, n = n2, sig.level = alfa, alternative = "two.sided")
+```
+
+Como se puede observar, el valor del poder de la prueba es de 0.44 aproximadamente, esto significa que hay un 44% de probabilidad de detectar que existe una diferencia entre las dos máquinas de la planta.
+
+Como conclusión adicional, la prueba tiene una potencia que es muy mala, ya que tiene un muy alto riesgo de un falso negativo (No rechazar $H_{0}$ cuando en verdad $H_{a}$ es verdadera), debido a que el experimento tiene un 56% de probabilidad de **no** detectar si realmente existe una diferencia entre las dos máquinas de la planta. 
+
+Ya que el alfa está en un punto razonable para la realización de la prueba y las proporciones estan cercanas al 100%, lo unico que podriamos mejorar para que aumente la potencia de la prueba es que se recolecten más muestras, osea, agrandar el tamaño de la muestra.

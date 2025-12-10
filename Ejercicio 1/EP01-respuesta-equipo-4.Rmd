@@ -1,0 +1,68 @@
+---
+title: "Ejercicio 1"
+author: "Franco Saravia"
+date: "2025-08-22"
+output: html_document
+---
+```{r setup, echo = FALSE, message=FALSE, warning=FALSE, include=FALSE}
+if(!require(dplyr)) install.packages("dplyr") #Para filtrar/leer excel
+if(!require(tidyr)) install.packages("tidyr")
+if(!require(ggplot2)) install.packages("ggplot2") #Para graficar
+```
+
+Para esta actividad, primero se lee el archivo csv que contiene los datos públicos recopilados por la encuesta Casen 2017 en la Región Metropolitana.
+
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+data <- read.csv2("EP01 Datos Casen 2017.csv")
+
+# Verificamos la integridad de las columnas que nos interesan: salario y provincia
+# Contamos la cantidad de datos que faltan (not assigned)
+sum(is.na(data$provincia))
+sum(is.na(data$ytot))
+
+```
+
+Como ninguna de las columnas tienen datos faltantes, podemos continuar. Luego a nosotros como el equipo 4 nos tocó la siguiente pregunta:
+
+###¿Son similares los ingresos registrados en las diferentes provincias de la RM?
+
+Primero debemos darnos cuenta cual es el tipo de variable por el que se nos pregunta. Para comenzar se tiene que la variable de ingresos es numérica discreta y pertenece a los números enteros no negativos (cardinales). Luego se tiene la variable provincias, la cual es categórica nominal.
+
+Para saber si los ingresos en distintas provincias de la Región Metropolitana son similares, se pueden usar las siguientes medidas estadísticas: Por parte de las medidas de tendencia central se van a usar la media aritmética y la mediana, se eligieron estas debido a que se pueden comparar los ingresos promedio y el o los datos centrales entre provincias para verificar la similitud de ingresos. Por parte de las medidas de dispersion se van a usar la desviación estándar y el IQR (rango intercuartil), estos se usan para darle más peso a las medidas de tendencia central, ya que una menor desviación estandar y un menor IQR indican que los ingresos no varian mucho y, por ende, tenderian a ser más similares.
+
+Por otra parte, el grafico más conveniente para mostrar si los ingresos son similiares o no es el grafico de violin, esto debido a que son especialmente utilies para comparar distribuciones entre varios grupos, que es justamente lo que queremos hacer, ya que además de tener el grafico de caja, tienen la distribucion de los graficos de linea, haciendo podible ver tambien la distribución de los datos.
+
+Continuando, comenzaremos a realizar las mediciones, primero se realizarán las mediciones de la media aritmetica, la mediana, la desviación estandar y el IQR
+
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+dataFiltrada <- data %>% group_by(provincia) %>% select(provincia, ytot)
+medidasIngresos <- dataFiltrada %>% summarise(Media = mean(ytot, na.rm = TRUE),
+                                              Mediana = median(ytot, na.rm = TRUE),
+                                              desviación_Estandar = sd(ytot, na.rm = TRUE),
+                                              Rango_Intercuartil = IQR(ytot, na.rm = TRUE)) %>%
+  as.data.frame()
+medidasIngresos
+```
+
+Como se puede observar, hay provincias que por las medidas de tendencia central tienen ingresos similares entre ellas pero no con todas, como Chacabuco con Cordillera y Maipo con Talagante, ya que sus medias y medianas son similares, sin embargo, la desviación estandar y el IQR entre los pares son muy diferentes además de grandes. Otro punto a considerar es la gigantezca desviación estandar que tiene Santiago, lo cual hace menos posible saber si hay similitud entre él y las demás provincias.
+
+Despues de ver los estadísticos, se crea el grafico de violin respectivo para corroborar los datos entregados por las medidas anteriores
+
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+ggplot(dataFiltrada, aes(x = provincia, y = ytot)) +
+  geom_violin(trim = FALSE) +
+  geom_boxplot(width = 0.1, fill = "white") +
+  labs(title = "Distribucion de los ingresos en las provincias", x = "Provincia", y = "Ingresos") +
+  theme_minimal()
+```
+
+Lo más notable al ver el grafico es la diferencia entre todas las provincias de la region metropolitana y la provincia de Santiago, donde esta ultima a simple vista presenta observaciones desproporcionadamente más grandes que el resto de provincias, teniendo algunos datos mayores a 20 millones de pesos.
+
+### Conclusión
+
+A pesar de que tanto las medidas estadísticas como el gráfico muestran que los salarios de las distintas provincias de la RM son distintos, no es posible asegurar nada. Para poder llegar a una conclusión acertada, es necesario realizar pruebas estadísticas más eficaces. Sin embargo, este análisis sirve como un buen comienzo para otra investigación más profunda.
+
+Pero si solo consideramos los resultados de esta investigación, es posible asegurar que los ingresos de las provincias no son similares. Esto es notorio principalmente por la provincia de Santiago, que tiene una desviación estándar de 1365242.4, más del doble de la segunda provincia con desviación estándar más alta, Chacabuco. Además el gráfico muestra una diferencia enorme entre Santiago y el resto de provincias. La diferencia enorme en la desviación de los datos, y no tanto así en la media y la mediana, puede deberse a que en Santiago hay personas que presentan ingresos mucho mayores al resto de la población, pero al ser pocos, no logran cambiar demásiado la media.
+
+Como ya se dijo, este análisis sirvió como un vistazo inicial, más no para una conclusión seria. Para continuar esta investigación es más recomendable usar otros métodos más seguros: en vez de usar análisis descriptivo, usar métodos inferenciales, como alguna prueba entre las distintas provincias.
+

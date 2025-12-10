@@ -1,0 +1,247 @@
+---
+title: "EP02-respuesta-equipo-4"
+author: "Daniel Monares - Franco Saravia"
+date: "2025-08-29"
+output: html_document
+---
+
+# Ejercicio Práctico 2
+
+El presente informe tiene como intención responder las preguntas del Ejercicio Práctico 2 para el equipo 4. El contexto con el que se está trabajando es que El Comité Olímpico de una gran potencia del atletismo está estudiando el programa de entrenamiento de varones para la competencia de 100 metros planos, por lo que ha recopilado datos de una muestra aleatoria de atletas.
+
+Para comenzar, leemos el conjunto de datos entregado que contiene la muestra de los atletas.
+
+```{r}
+# Leemos el conjunto de datos
+data <- read.csv2("EP02 Datos.csv")
+
+# Mostramos algunos datos de la tabla
+head(data)
+```
+
+Luego, vemos cuáles son los tipos de las variables del conjunto
+
+```{r, message=FALSE}
+library(dplyr)
+
+glimpse(data)
+```
+
+Como se puede observar, todos los tipos de datos para cada variable del dataset están bien a excepción de Zona, que es una variable categórica nominal, vamos a cambiarlo para mantener las buenas practicas.
+
+```{r}
+# Modificar el tipo de dato de Zona
+data[["Zona"]] <- factor(data[["Zona"]])
+
+glimpse(data)
+```
+
+Una vez que se cambió el tipo de dato de Zona, se vuelven a mostrar los tipos de dato para confirmar que el cambio se realizó. Teniendo todos los tipos de datos correctos, procedemos a responder las preguntas planteadas.
+
+
+### 1. El Comité Olímpico cree que el mejor tiempo medio de los atletas de la zona Sur antes de ingresar al programa de entrenamiento era inferior a 14,3 segundos. ¿Soportan los datos esta afirmación?
+
+Para abordar la pregunta, antes debemos darnos cuenta de unas cosas. La variable de interés de esta pregunta es el mejor tiempo registrado previo al entrenamiento, el cual es del tipo numérica continua. El parámetro que debemos estudiar es la media de los tiempos previos de atletas de la zona sur.
+
+Una vez que sabemos esto, la hipótesis nula a verificar es la siguiente:
+
+$H_{0}$: El mejor tiempo medio de los atletas de la zona sur antes de ingresar al programa es de 14,3 segundos exactamente, Matemáticamente  está representado como $\mu=14,3$.
+
+Por ende, su hipótesis alternativa es:
+
+$H_{A}$: El mejor tiempo medio es menor a 14,3 segundos, Matemáticamente  está representado como $\mu<14,3$.
+
+Una vez definidas las hipótesis, para poder responder esta pregunta primero debemos filtrar los datos que nos piden, osea, seleccionar solo los atletas de la zona sur y sus tiempos antes de ingresar al programa de entrenamiento.
+
+```{r}
+# Seleccionamos los datos que nos interesan
+tiemposAntesSur <- data %>% filter(Zona == "Sur") %>% select(Previo)
+
+# Tamaño de la muestra
+tamano <- length(tiemposAntesSur[["Previo"]])
+
+cat("El tamaño de la muestra es:", tamano)
+```
+
+Las pruebas que pueden responder la pregunta son la prueba Z o la prueba t de Student. Como el tamaño de la muestra es menor a 30 la prueba Z queda descartada, ya que la prueba t de Student es mejor con muestras menores a 30.
+
+Ahora verificamos que se cumplan las condiciones para usar la prueba t de Student. Como el enunciado nos dice que se seleccionó una muestra aleatoria de atletas, y por consecuencia la elección y rendimiento de un atleta no condiciona la elección o rendimiento de otro, es posible confirmar que la muestra cumple con la condición de observaciones independientes. Ahora para saber si los datos siguen una distribución normal o cercana a esta, usamos la prueba de Shapiro-Wilk y el gráfico Q-Q (Quantile-Quantile plot), se usan ambos metodos para que la conclusión sea más fundamentada.
+
+```{r}
+# Prueba de Shapiro
+cat("El valor p de la prueba de Shapiro para normalidad es: p =", shapiro.test(tiemposAntesSur[["Previo"]])$p)
+```
+
+Continuando con la constuccion del gráfico Q-Q tenemos:
+
+```{r, message=FALSE}
+library(ggpubr)
+
+# Gráfico Q-Q
+g <- ggqqplot(tiemposAntesSur, x = "Previo", title = "Grafico Q-Q", color = "blue")
+plot(g)
+```
+
+Con el resultado del valor p es igual a 0.663 y observando el gráfico Q-Q, podemos concluir que la muestra sigue una distribución muy cercana a una distribución normal.
+
+Con las dos condiciones verificadas, aplicamos la prueba t para la media de una muestra unilateral. Como lo que estamos investigando no es algo crítico, y cometer un error de tipo I no es algo grave (teniendo en cuenta el contexto entregado), vamos a considerar un nivel de confianza del 95% (significancia \alpha=0,05).
+
+```{r}
+valorNulo = 14.3
+confianza = 0.95
+
+# Prueba t para una muestra y una cola (derecha)
+t.test(tiemposAntesSur, alternative = "less", mu = valorNulo, conf.level = confianza)
+```
+
+Tal como el resultado de la prueba muestra, el valor p es igual a 0.199, osea, es más alto que la significancia elegida $\alpha$ = 0,05. Por lo tanto, la evidencia muestra que no hay pruebas suficiente para rechazar a la hipótesis nula.
+
+En conclusión, se puede afirmar con un 95% de confianza que el mejor tiempo promedio de los atletas de la zona sur antes de ingresar al programa de entrenamiento es de 14.3 segundos. También  es bueno mencionar que el valor p está lejos del borde de significación $\alpha$ (distancia de 0.15), por lo tanto, no es necesario obtener una muestra más grande.
+
+
+### 2. ¿Sugieren los datos que la mejor marca de los atletas de la zona Centro-Norte se reduce en promedio más de 3,4 segundos tras el entrenamiento?
+
+La pregunta apunta a conocer si es cierto que el mejor tiempo medio de los atletas de la zona Centro-Norte se ha reducido en promedio más de 3,4 segundos tras el entrenamiento. En otras palabras, si la media de las diferencias entre los tiempos previo y posterior de cada atleta ha disminuido. Las variables que nos interesan son los tiempos anteriores y posteriores al entrenamiento. Considerando $dif=t_{previo}-t_{posterior}$, las hipótesis son las siguientes:
+
+$H_{0}$: La media de las diferencias entre los tiempos de cada atleta después del programa de entrenamiento es igual a 3,4 segundos, es decir, $\mu_{dif}=3,4$
+
+$H_{A}$: La media de las diferencias de los tiempos después del programa es menor a 3,4 segundos, es decir, $\mu_{dif}<3,4$
+
+Antes de decidir que prueba de hipótesis usar para resolver la pregunta, debemos darnos cuenta de una característica importante: estamos trabajando con dos muestras, tiempo previo y posterior. Como cada observación de una muestra está directamente relacionada con otra del otro conjunto, esto es tiempos previo y posterior de la misma persona, se trata de dos muestras pareadas.
+
+Ya que la pregunta está orientada al parámetro de la media, y es un caso de dos muestras pareadas, la prueba de hipótesis más apropiada es la prueba t de Student para dos muestras pareadas. Luego, procedemos a revisar sus condiciones.
+
+Al igual que el problema anterior, la muestra elegida es aleatoria y el rendimiento de un atleta no afecta el de los demás, por lo tanto las observaciones son independientes en cada conjunto de datos. Para probar normalidad del conjunto, aplicamos el test de Shapiro-Wilk a la diferencia de las muestras.
+
+```{r}
+#Filtramos los datos
+tiemposCentroNorte <- data %>% filter(Zona=="Centro-Norte") %>% select(Previo, Posterior)
+
+# Diferencia de muestras
+diferencia <- tiemposCentroNorte[["Previo"]] - tiemposCentroNorte[["Posterior"]]
+
+# Prueba de Shapiro
+cat("El valor p de la prueba de Shapiro para normalidad de la diferencia de muestras es: p =", shapiro.test(diferencia)$p)
+```
+
+El valor del estadístico p de la prueba es p = 0,337. Entonces se confirma que la distribución de la diferencia entre tiempos de los atletas sigue, o es cercana, a la distribución normal, no se realizó el grafico Q-Q ya que al ser una diferencia entre los tiempos es más complicado graficarlo.
+
+Una vez verificadas estas condiciones, podemos aplicar la prueba t de Student para dos muestras pareadas. La significancia que usaremos va a ser nuevamente 95% por los mismos motivos que en la pregunta 1.
+
+```{r}
+valorNulo = 3.4
+confianza = 0.95
+
+# Prueba t para dos muestras dependientes y una cola (derecha)
+t.test(x = tiemposCentroNorte[["Previo"]], y = tiemposCentroNorte[["Posterior"]],
+       paired = TRUE, alternative = "less", mu = valorNulo, conf.level = confianza)
+```
+
+El valor p de la prueba es p = 0,001 y el intervalo de confianza es $(-\infty,3.244]$. El valor p es menor a la significancia (p < $\alpha$), lo que significa la evidencia nos sugiere rechazar la hipótesis nula en favor de la hipótesis alternativa.
+
+En conclusión, se puede afirmar con un 95% de confianza que la diferencia en los tiempos anteriores y posteriores al programa de entrenamiento de los atletas de la zona centro-norte es, en promedio, mayor a 3,4 segundos. Dicho de otro modo, el mejor tiempo de los atletas disminuyó en promedio más de 3,4 segundos después del entrenamiento.
+
+
+### 3. ¿Es posible afirmar que, en promedio, los atletas de la zona Centro-Norte superan a los de la zona Centro-Sur por 1 segundo después del entrenamiento?
+
+Analizando la pregunta, nos damos cuenta de algunas cosas. La variable de interés es el tiempo de los atletas posterior al programa de entrenamiento. El parámetro por el que se pregunta es la media. Los conjuntos de datos de interés son dos, los atletas de la zona Centro-Norte y Centro-Sur, por ende, más adelante la prueba de hipótesis elegida debe ser capaz de analizar dos conjuntos de datos.
+
+Entonces, considerando respectivamente $\mu_{cn}$ y $\mu_{cs}$ como la media poblacional de los tiempos de los atletas de la zona Centro-Norte y Centro-Sur, y que con "superar" se refiere a tener un tiempo menor por 1 segundo, las hipótesis son las siguientes:
+
+$H_{0}$: El tiempo promedio de los atletas de la zona Centro-Norte después del entrenamiento no supera en 1 segundo al tiempo promedio de los atletas de la zona Centro-Sur después del entrenamiento. Matemáticamente  está representado como $\mu_{cn}-\mu_{cs}\neq-1$
+
+$H_{A}$: El tiempo promedio de los atletas de la zona Centro-Norte después del entrenamiento supera en 1 segundo al tiempo promedio de los atletas de la zona Centro-Sur después del entrenamiento. Matemáticamente  está representado como $\mu_{cn}-\mu_{cs}=-1$
+
+Como el problema anterior, nos encontramos ante un caso de dos muestras. Sin embargo, las muestras de un grupo no dependen del anterior, la elección de un atleta de la zona Centro-Sur no depende de la elección de uno de la zona Centro-Norte. Por lo tanto, se puede decir que los conjuntos de muestras investigadas son independientes.
+
+Entonces, dado que la medida estadística que se nos pide inferir es la media poblacional, y estamos trabajando con dos grupos de atletas, la prueba estadística que más nos podría servir es la prueba t de Student para la media entre dos muestras independientes. Verificamos si se cumplen sus condiciones.
+
+Desde ya podemos confirmar que se cumple la condición de observaciones aleatorias en ambas muestras, ya que el enunciado dice que cada atleta se eligión de manera aleatoria.
+
+Para verificar normalidad de ambas muestras, usamos la prueba de Shapiro-Wilk para cada grupo separado.
+
+```{r}
+# Filtramos los datos
+tiemposCentroNorte <- data %>% filter(Zona=="Centro-Norte") %>% select(Posterior)
+tiemposCentroSur <- data %>% filter(Zona=="Centro-Sur") %>% select(Posterior)
+
+# Prueba de Shapiro
+cat("El valor p de la prueba de Shapiro sobre los atletas de la zona Centro-Norte es: p =", shapiro.test(tiemposCentroNorte[["Posterior"]])$p)
+
+cat("El valor p para los atletas de la zona Centro-Sur: p =", shapiro.test(tiemposCentroSur[["Posterior"]])$p)
+```
+
+Ambos valores del valor p de la prueba para normalidad sobre los atletas de la zona Centro-Norte y Centro-Sur están sobre $\alpha$=0,05, por lo que verificamos que no hay evidencia suficiente para decir que ambas distribuciones son distintas a la normal.
+
+Como ya verificamos que se cumplen todas las condiciones de la prueba t de Student para dos muestras independientes, procedemos a usarla. La prueba t para dos muestras independientes usa como estadístico la diferencias entre las muestras, la que es $\overline{x}_{cn}-\overline{x}_{cs}$, y ya que se desea saber si los tiempos de los atletas de la zona Centro-Norte superan en 1 segundo a los de la zona Centro-Sur, la ecuación es $\overline{x}_{cn}-\overline{x}_{cs}=-1$. Debido a esto, el valor nulo es -1.
+
+```{r}
+valorNulo = -1
+confianza = 0.95
+
+# Prueba t para dos muestras dependientes y una cola (derecha)
+t.test(x = tiemposCentroNorte[["Posterior"]], y = tiemposCentroSur[["Posterior"]],
+       paired = FALSE, alternative = "two.sided", mu = valorNulo, conf.level = confianza)
+```
+
+El valor de p en la prueba es de 0.244 y el intervalo de confianza es $[-1.8541185,-0.7781636]$. Como se puede observar el valor de p es mayor a la significancia (0.05), por lo tanto, la evidencia muestra que no hay pruebas suficiente para rechazar a la hipótesis nula.
+
+En conclusión, se puede afirmar con un 95% de confianza que el tiempo promedio de los atletas de la zona Centro-Norte después del entrenamiento no supera en 1 segundo al tiempo promedio de los atletas de la zona Centro-Sur después del entrenamiento. También  es bueno mencionar que el valor p está lejos del borde de significación $\alpha$ (distancia de 0.194), por lo tanto, con esta muestra basta.
+
+
+### 4. ¿Será cierto que hay menos atletas de la zona Centro-Sur que redujeron sus mejores marcas en al menos 5,1 segundos que atletas de la zona Sur que lo hicieron en al menos 1,3 segundos?
+
+De la pregunta se puede obtener que la variable de interés es si un atleta reduce su marca según los segundos requeridos por su zona. El parametro que nos interesa es la diferencia de proporciones entre los atletas de la zona Centro-Sur y Sur, por ende, la hipótesis debe considerar que se tienen dos proporciones de datos independientes entre si.
+
+Entonces, considerando respectivamente $p_{cs}$ y $p_{s}$ como la proporcion de los atletas que mejoraron su tiempo de la zona Centro-Sur y Sur, las hipótesis son las siguientes:
+
+$H_{0}$: No hay diferencia en la proporción de atletas de la zona Centro-Sur que mejoraron su tiempo al menos 5,1 segundos y la proporción de atletas de la zona Sur que mejoraron su tiempo al menos 1,3 segundos, Matemáticamente  está descrito como $p_{cs} = p_{s}$
+
+$H_{A}$: La proporción de atletas de la zona Centro-Sur que mejoraron su tiempo al menos 5,1 segundos es menor a la proporción de atletas de la zona Sur que mejoraron su tiempo al menos 1,3 segundos, Matemáticamente  está descrito como $p_{cs} < p_{s}$
+
+Como en los problemas anteriores, nos encontramos ante un caso de dos muestras. Sin embargo, para poder comparar ambas proporciones, primero hay que obtenerlas. Como para la obtención de proporciones se necesitan casos de éxito y fracaso, tomaremos el caso de éxito si un atleta logra reducir su tiempo en al menos el tiempo establecido dependiendo de la zona.
+
+Comenzaremos obteniendo la proporción de los atletas de la zona Centro-Sur que redujeron sus mejores marcas en al menos 5,1 segundos. Primero obtendremos la cantidad total de atletas de la zona Centro-Sur:
+
+```{r}
+#Se filtran los datos con los atletas que pertenecen a la zona Centro-sur
+tiemposCentroSur <- data %>% filter(Zona == "Centro-Sur")
+
+#Se cuenta la cantidad de atletas de la zona
+totalAtletasCentroSur <- nrow(tiemposCentroSur)
+```
+
+Una vez obtenida la cantidad total de atletas, se obtienen los casos exitosos:
+
+```{r}
+#Se obtienen los atletas que mejoraron su tiempo al menos en 5,1 segundos
+tiemposMejoradosCentroSur <- tiemposCentroSur %>% filter(Previo - Posterior >= 5.1)
+
+#Se cuenta la cantidad de atletas que mejoraron su tiempo
+totalExitosCentroSur <- nrow(tiemposMejoradosCentroSur)
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r, include=TRUE}
+library(pwr)
+
+significancia <- 0.05
+efecto <- (10 - 9.7) / 1   # d = 0.3
+
+resultado <- pwr.t.test(d = efecto,
+                        sig.level = significancia,
+                        power = 0.8,
+                        type = "one.sample")
+
+resultado
+
+```

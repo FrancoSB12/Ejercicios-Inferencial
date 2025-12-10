@@ -1,0 +1,199 @@
+---
+title: "EI-EP05-respuesta-equipo-6"
+author: "Grupo 6"
+date: "2025-09-25"
+output: html_document
+---
+En una emocionante competencia de cubos Rubik, participantes de Chile, Argentina, Colombia, Uruguay, Perú y Ecuador demostraron su destreza en resolver tres tipos de cubos: 2x2x2, 3x3x3 y Megaminx.
+
+Después del torneo, un grupo de investigadores de la Asociación Mundial del Cubo, interesado en los tiempos que hicieron las jugadoras y los jugadores en la competencia, decidieron estudiar si el país y el tipo de cubo usado en cada prueba tienen influencia en los segundos que se tardan en resolverlos. Para ello usaron una muestra aleatoria de las muestras de la competencia, en la cual participaron más de 2.000 personas, con las siguientes variables:
+
+```{r setup}
+#Se importa la libreria para hacer la tabla
+library(knitr)
+library(kableExtra)
+#Se crea una tabla para mostrar las variables y su descripción
+tabla_variables <- data.frame(Variable = c("id", "pais", "tipo", "tiempo"),
+                              Descripcion = c("Identificador único de cada participante", "País que representa cada participante (Argentina, Chile, Colombia, Ecuador, Perú, Uruguay)", "Tipo de cubo usado en la prueba (2x2x2, 3x3x3, Megaminx)", "Tiempo, en segundos, que toma al participante en resolver el cubo de la prueba"))
+
+#Se muestra la tabla
+kable(tabla_variables, align = c("c", "l")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+                full_width = FALSE,
+                position = "center") %>%
+  row_spec(0, bold = TRUE, color = "white", background = "black") %>%
+  column_spec(1, bold = TRUE, color = "blue")
+```
+
+En este contexto, se nos pidió responder a la siguiente pregunta utilizando el procedimiento ANOVA:
+
+#### ¿Existen diferencias en el tiempo de resolución de cubos Megaminx entre participantes de Uruguay, Perú y Colombia?
+
+Para empezar, se importan las muestras utilizando read.csv2() ya que se debe trabajar sobre ellos. Una vez importadas las muestras se filtran para que solo hayan participantes de las nacionalidades y el tipo de cubo que indica la pregunta, después, se mostrarán unos pocos para entender las muestras con las que vamos a trabajar.
+
+```{r, message=FALSE}
+#Se importa la libreria necesaria para filtrar por país
+library(dplyr)
+
+#Se importan las muestras
+datos <- read.csv2("EP05 Datos.csv")
+
+#Se filtran las muestras por nacionalidad uruguaya, peruana y colombiana y por el tipo de cubo Megaminx
+datos_filtrados <- datos %>%
+  filter(pais %in% c("Uruguay", "Perú", "Colombia") & tipo == "Megaminx")
+
+#Se muestran unos pocos datos
+head(datos_filtrados)
+
+```
+
+Ya filtradas las muestras, se verifican los tipos de las variables del conjunto para revisar que todas sean del tipo que deben ser.
+
+```{r}
+#Se verifican las muestras
+glimpse(datos_filtrados)
+```
+
+Como se puede observar, los tipos de datos son correctos; sin embargo, dado que utilizaremos las variables categóricas para analizarlas, las convertiremos a factores para facilitar su manejo. Posteriormente, se mostrarán nuevamente para confirmar que el tipo de dato fue cambiado correctamente.
+
+```{r}
+#Se modifica el tipo de dato de pais y tipo
+datos_filtrados[["pais"]] <- factor(datos_filtrados[["pais"]])
+datos_filtrados[["tipo"]] <- factor(datos_filtrados[["tipo"]])
+
+glimpse(datos_filtrados)
+```
+
+Una vez que las muestras están listas, se procede a plantear tanto la hipótesis nula como la hipótesis alternativa a contrastar en esta investigación:
+
+$H_0$: El tiempo de resolución, en promedio, de cubos Megaminx es igual para los participantes de las tres nacionalidades. Matemáticamente está denotado como: $\mu_{U} = \mu_{P} = \mu_{Co}$, con U de Uruguay, P de Perú y Co de Colombia.
+
+$H_a$: El tiempo de resolución, en promedio, de cubos Megaminx es diferente para al menos una de las nacionalidades. Matemáticamente está denotado como: $\exists i,j \in \{U, P, Co\}, i \neq j | \mu_i \neq \mu_j$
+
+Ya definidas las hipótesis a contrastar definiremos el tipo de prueba ANOVA a utilizar. Ya que se nos pide verificar si hay diferencias entre los tiempos de resolución de solo un tipo de cubo (Megaminx) entre participantes de tres nacionalidades distintas, las muestras son independientes entre si, ya que un sujeto de prueba solo resuelve un tipo de cubo, por ende, el procedimiento ANOVA a utilizar será el de una vía para muestras independientes. Después de definir el tipo de procedimiento, se procede a verificar las condiciones que se deben cumplir para poder realizar la prueba de esta:
+
+1. **La escala con que se mide la variable dependiente tiene las propiedades de una escala de intervalos iguales.** Ya que la variable dependiente es el tiempo, esta se mide en una escala de intervalos iguales, a no ser que se especifique lo contrario, en este caso no es así, por lo tanto los intervalos son iguales y son de 0.01 segundos.
+
+2. **Las k muestras son obtenidas de manera aleatoria e independiente desde la(s) población(es) de origen.** Como se menciona en el enunciado de la investigación, las muestras fueron obtenidas de forma aleatoria y debido a que se puede suponer que cada participante estaba concentrado resolviendo su cubo, el tiempo de resolución de un participante no afecta al tiempo de resolución de los demás, solo falta obtener el tamaño de cada muestra para verificar que estas son menos del 10% de la población de cada país, para esto se separarán los participantes por nacionalidad y se contarán por separado.
+
+```{r}
+#Se separan las nacionalidades 
+uruguayos <- datos_filtrados %>%
+  filter(pais == "Uruguay")
+
+peruanos <- datos_filtrados %>%
+  filter(pais == "Perú")
+
+colombianos <- datos_filtrados %>%
+  filter(pais == "Colombia")
+
+#Se calcula el tamaño de cada muestra
+largo_uru <- nrow(uruguayos)
+largo_peru <- nrow(peruanos)
+largo_col <- nrow(colombianos)
+
+#Se muestran los largos
+salidas <- c()
+salidas <- c(salidas, paste("Cantidad uruguayos = ", largo_uru))
+salidas <- c(salidas, paste("Cantidad peruanos = ", largo_peru))
+salidas <- c(salidas, paste("Cantidad colombianos = ", largo_col))
+cat(salidas, sep = "\n")
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Como se puede observar, la cantidad de participantes uruguayos, peruanos y colombianos claramente es menor al 10% de cada población, &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;por ende, las muestras son independientes entre si.
+
+3. **Se puede suponer razonablemente que la(s) población(es) de origen sigue(n) una distribución normal.** Para verificar esta condición, se realizará un grafico Q-Q para visualizar su distribución y si siguen aproximadamente una distribución normal.
+
+```{r, warning=FALSE, message=FALSE}
+#Se importan las librerias necesarias para realizar el gráfico
+library(ggpubr)
+
+#Se crean los gráficos Q-Q por separado ya que tienen las muestras son de distinto largo
+#Gráfico participantes uruguayos
+gU <- ggqqplot(uruguayos, x = "tiempo", title = "Grafico Q-Q para participantes uruguayos", color = "blue")
+gU <- gU + rremove("x.ticks") + rremove("x.text")
+gU <- gU + rremove("y.ticks") + rremove("y.text")
+gU <- gU + rremove("axis.title")
+plot(gU)
+
+#Gráfico participantes peruanos
+gP <- ggqqplot(peruanos, x = "tiempo", title = "Grafico Q-Q para participantes peruanos", color = "red")
+gP <- gP + rremove("x.ticks") + rremove("x.text")
+gP <- gP + rremove("y.ticks") + rremove("y.text")
+gP <- gP + rremove("axis.title")
+plot(gP)
+
+#Gráfico participantes colombianos
+gCo <- ggqqplot(colombianos, x = "tiempo", title = "Grafico Q-Q para participantes colombianos", color = "yellow3")
+gCo <- gCo + rremove("x.ticks") + rremove("x.text")
+gCo <- gCo + rremove("y.ticks") + rremove("y.text")
+gCo <- gCo + rremove("axis.title")
+plot(gCo)
+
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Como se observa en los gráficos, la tercera condición parece también cumplirse, aunque hay un par de valores en cada muestra que están &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;al límite de la línea teórica y las muestras no son tan grandes, para proceder con cautela se usará un nivel de significación un poco más &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;exigente: $\alpha$ = 0.025.
+
+4. **Si las muestras provienen de más de una población, estas poblaciones tienen la misma varianza.** Para verificar esta condición, se realizará una prueba de homocedasticidad, que consiste en comprobar que la razón entre la máxima y la mínima varianza muestral de los grupos no es superior a 1.5. Aprovechando esta verificación, se separarán las muestras en tiempo y 
+
+```{r}
+#Se obtienen las varianzas
+var_uru = var(uruguayos$tiempo)
+var_peru = var(peruanos$tiempo)
+var_col = var(colombianos$tiempo)
+
+#Se imprimen las varianzas para ver cual es la máxima y cual es la mínima
+salidas <- c()
+salidas <- c(salidas, paste("Varianza uruguayos = ", var_uru))
+salidas <- c(salidas, paste("Varianza peruanos = ", var_peru))
+salidas <- c(salidas, paste("Varianza colombianos = ", var_col))
+cat(salidas, sep = "\n")
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Como se puede ver, la máxima varianza es la de los uruguayos y la mínima es la de los peruanos, una vez definidos estos, se procede a &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;obtener su razón.
+
+```{r}
+razon_uru_peru <- var_uru / var_peru
+cat(paste("Razón = ", razon_uru_peru))
+```
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;En consecuencia, aplicando este criterio simple, se puede considerar que la condición de homocedasticidad se verifica para esta &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;investigación, o sea, esta condición también se cumple.
+
+Debido a que se cumplen las cuatro condiciones, se puede realizar la prueba ANOVA ómnibus, se utilizará la función aov() para esto. Como dato adicional, anteriormente, en la verificación de la condición 2, se vió que las muestras no están perfectamente balanceadas, sin embargo, ya que la diferencia es mínima (4 muestras entre el menor y el mayor), se puede usar aov() sin problema ya que no afecta significativamente en el resultado de la prueba.
+
+```{r}
+#Se realiza y se muestra el procedimiento ANOVA
+prueba_aov <- aov(tiempo ~ pais, data = datos_filtrados)
+
+cat("Procedimiento ANOVA usando aov")
+print(summary(prueba_aov))
+```
+
+Como se puede observar en la tabla, el valor de p (descrito como Pr(>F) en la tabla del procedimiento ANOVA) es muy menor al nivel de significancia $\alpha$ establecido, ya que $2.52 * 10^{-13} < 0.025$. Por lo tanto, se rechaza la hipótesis nula en favor de la hipótesis alternativa. En consecuencia, se puede decir con un 97.5% de confianza que el tiempo de resolución promedio de cubos Megaminx es **diferente** para al menos una de las nacionalidades comparadas.
+
+A causa de que se rechazó la hipótesis nula en favor de la alternativa, una de las nacionalidades comparadas tiene tiempos de resolución del cubo Megaminx significativamente diferente al resto, en consecuencia, se debe realizar un procedimiento post-hoc para determinar esta diferencia y a que nacionalidad pertenece.
+
+La prueba post-hoc elegida es la prueba HSD de Tukey, ya que compara todos pares de grupos (paises en este caso), tienen una mayor potencia estadistica que los ajustes generales para controlar la tasa de error por familia de hipótesis cuando se cumplen los siguientes supuestos:
+
+1. **Los grupos tienen la misma cantidad de observaciones.** Como se mencionó antes de realizar la prueba de ANOVA, pese a que los grupos no están perfectamente balanceados, al ser mínima su diferencia, tampoco afecta significativamente a esta prueba, de ahi que se puede decir que se cumple este supuesto.
+
+2. **Se verifican las condiciones para realizar la prueba ANOVA.** Este supuesto se cumple plenamente, ya que como se observó en la verificación de condiciones del procedimiento ANOVA, todas estas se cumplen.
+
+Dado que se cumplen los supuestos para realizar la prueba HSD de Tukey, se define el nivel de confianza, el cual será el mismo que en la prueba ANOVA, a causa de que este es un procedimiento post-hoc y se deben mantener estos datos. Finalmente, se procede a realizar la prueba.
+
+```{r}
+#Se define el nivel de confianza, se usa el mismo alfa utilizado en la prueba ANOVA
+conf_lvl <- 1 - 0.025
+
+#Se realiza y se muestra la prueba HSD de Tukey
+hsd <- TukeyHSD(prueba_aov, "pais", ordered = TRUE, conf.level = conf_lvl)
+cat("Procedimiento ANOVA usando aov")
+print(hsd)
+```
+
+Como se aprecia en la tabla, los valores p menores al nivel de significancia ($\alpha$ = 0.025) corresponden a la diferencia Colombia-Perú y Colombia-Uruguay, mientras que en la diferencia Uruguay-Perú no se encontró diferencias significativas. 
+
+Que el valor p de las dos primeras diferencias fueran 0.0000000 se debe a que el valor p es muy pequeño, lo cual corrobora al valor p obtenido en la prueba ANOVA. Para confirmar que las diferencias significativas están efectivamente en esos pares, se puede ver los límites inferiores y superiores del intervalo de confianza de cada par. Para el par Colombia-Perú sus límites inferior y superior son 0.5447389 y 1.0712611 respectivamente, mientras que en el par Colombia-Uruguay sus límites inferior y superior son 0.4129381 0.9533322 respectivamente. Tal como se puede ver, los valores p de los dos pares son menores a los dos límites inferiores, o sea, existen diferencias significativas en ambos pares.
+
+En conclusión, existe diferencia en el tiempo de resolución de cubos Megaminx entre participantes de Uruguay, Perú y Colombia, más especificamente, el tiempo de resolución promedio de los participantes de Colombia tiene una diferencia significativa con el tiempo de resolución promedio de los participantes de Uruguay y Perú.
+
