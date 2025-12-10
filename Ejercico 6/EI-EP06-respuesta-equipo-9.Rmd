@@ -1,0 +1,184 @@
+---
+title: "EI-EP06-respuesta-equipo-9"
+output:
+  html_document: default
+  pdf_document: default
+date: "2025-11-25"
+---
+Un equipo de investigadores del area de interacción humano-información está estudiando si el area temática y el nivel de dificultad del problema de información influyen en el tiempo (en segundos) que toma un usuario en formular una consulta de búsqueda para resolver dicho problema. Para ello, han reclutado a un grupo de participantes voluntarios, asignados aleatoriamente a distintos grupos. Cada participante debe resolver tres problemas de información con diferentes niveles de dificultad: baja, media y alta. A su vez, cada grupo debe resolver problemas relacionados a una temática diferente, las cuales se muestran a continuación:
+
+```{r setup}
+#Se importa la libreria para hacer la tabla
+library(knitr)
+library(kableExtra)
+
+#Se crea una tabla para mostrar las variables y su descripción
+tabla_variables <- data.frame(Variable = c("id", "area", "dificultad", "tiempo"),
+                              Descripcion = c("Identificador único de cada participante", "Area tematica de la que se busca información", "Nivel de dificultad de los problemas de información", "Tiempo (en segundos) que se demora un participante en resolver el problema"))
+
+#Se muestra la tabla
+kable(tabla_variables, align = c("c", "l")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+                full_width = FALSE,
+                position = "center") %>%
+  row_spec(0, bold = TRUE, color = "white", background = "black") %>%
+  column_spec(1, bold = TRUE, color = "blue")
+```
+
+En este momento, los investigadores buscan determinar si existen diferencias en el tiempo que tardan los usuarios en formular consultas para problemas con diferente nivel de dificultad en el area de arquitectura.
+
+Para empezar, se importan las muestras utilizando read.csv() ya que se debe trabajar sobre ellos. Una vez importados, se filtran para conservar solo los participantes que resolvieron problemas del área de arquitectura. Posteriormente, se muestran algunas filas del conjunto de datos para familiarizarse con la estructura de la información con la que se trabajará.
+
+```{r, message=FALSE}
+#Se importa la libreria necesaria para filtrar por area
+library(dplyr)
+
+#Se importan las muestras
+datos <- read.csv("EP06 Datos.csv")
+
+##Se filtran las muestras por arquitectura
+datos_filtrados <- datos %>%
+  filter(area == "Arquitectura")
+
+#Se muestran unos pocos datos
+head(datos_filtrados)
+```
+
+Una vez filtrados los datos, se verifica el tipo de cada variable del conjunto para comprobar que todas correspondan al tipo de dato correcto.
+```{r}
+#Se verifican las muestras
+glimpse(datos_filtrados)
+```
+
+Como se puede observar, los tipos de datos identificados son los adecuados para cada variable. No obstante, dado que las variables categóricas serán utilizadas en el análisis, se procederá a convertirlas a factores para facilitar su manipulación en R. Posteriormente, se volverá a mostrar la estructura de los datos para verificar que la modificación se haya realizado correctamente.
+
+```{r}
+#Se modifican los tipos de datos de id, area y dificultad
+datos_filtrados[["id"]] <- factor(datos_filtrados[["id"]])
+datos_filtrados[["area"]] <- factor(datos_filtrados[["area"]])
+datos_filtrados[["dificultad"]] <- factor(datos_filtrados[["dificultad"]])
+
+glimpse(datos_filtrados)
+```
+
+Una vez que los datos están preparados, se procede a formular tanto la hipótesis nula como la hipótesis alternativa que serán contrastadas en esta investigación:
+
+$H_0$: En promedio, no existen diferencias en los tiempos requeridos por los usuarios para formular consultas que resuelvan problemas con diferente nivel de dificultad en el área de arquitectura.
+
+$H_a$: Existen diferencias significativas en los tiempos promedio requeridos por los usuarios para formular consultas entre al menos un par de los niveles de dificultad estudiados.
+
+Matemáticamente, sean $t_b$, $t_m$ y $t_a$ los tiempos requeridos por los usuarios para formular consultas de problemas de nivel bajo, medio y alto, respectivamente. Se define $d_{X-Y}$ como la diferencia entre los tiempos requeridos para los niveles de dificultad X e Y (es decir: $d_{X-Y} = t_X - t_Y$), donde $X, Y \in {b, m, a}$ y $X \neq Y$. Entonces:
+
+$H_0$: $\mu_{d_{b-m}} = \mu_{d_{b-a}} = \mu_{d_{m-a}} = 0$
+
+$H_a$: $\exists X,Y \in \{b, m, a\}, X \neq Y | \mu_{d_{X-Y}} \neq 0$
+
+Una vez definidas las hipótesis a contrastar, se determinará el tipo de prueba ANOVA a utilizar. Dado que el enunciado especifica que cada participante resuelve tres problemas de información con diferentes niveles de dificultad (baja, media y alta), puede afirmarse que las muestras están correlacionadas, ya que cada participante es medido en todos los niveles de la variable independiente (nivel de dificultad). Tras establecer el tipo de procedimiento ANOVA, se procede a verificar los supuestos que deben cumplirse para la aplicación de esta prueba:
+
+1. **La escala con que se mide la variable dependiente tiene las propiedades de una escala de intervalos iguales.** Dado que la variable dependiente es el tiempo medido en segundos, esta corresponde a una escala de intervalos iguales (como toda magnitud física) a no ser que se especifique lo contrario. En este caso, no se indica lo contrario, por lo que los intervalos son iguales y equivalentes a 1 segundo.
+
+2. **Las observaciones son independientes al interior de cada muestra**  El enunciado señala que los participantes fueron reclutados como voluntarios y asignados aleatoriamente a distintos grupos, garantizando así que el desempeño de un participante no afecte al de los demás. Adicionalmente, se verifica que el tamaño muestral sea inferior al 10% de la población mundial para respaldar el supuesto de independencia.
+
+```{r}
+#Se calcula el tamaño de la muestra
+largo <- nrow(datos_filtrados)
+
+#Se muestran el largo
+cat(paste("Cantidad de muestras = ", largo))
+```
+
+Como puede observarse, el tamaño de la muestra es claramente inferior al 10\% de la población mundial, por lo que se cumple el supuesto de independencia de las observaciones dentro de cada grupo.
+
+3. **Se puede suponer razonablemente que la(s) población(es) de origen sigue(n) una distribución normal.** Para verificar este supuesto, se elaborarán gráficos Q-Q que permitan visualizar si la distribución de los datos se aproxima a la distribución normal.
+
+```{r, message=FALSE}
+#Se importa la libreria necesaria para realizar el gráfico
+library(ggpubr)
+#Se crean los gráficos Q-Q para los tres niveles de dificultad
+g1 <- ggqqplot(datos_filtrados, x = "tiempo", y = "dificultad", alpha = 0.7, palette = c("steelblue","steelblue1","steelblue4"))
+g1 <- g1 + facet_wrap(~ dificultad)
+g1 <- g1 + rremove("x.ticks") + rremove("x.text")
+g1 <- g1 + rremove("y.ticks") + rremove("y.text")
+g1 <- g1 + rremove("axis.title")
+
+#Se muestran los gráficos
+print(g1)
+```
+
+Como se observa en los gráficos, las dificultades alta y media cumplen con el supuesto de normalidad, aunque existe un par de valores en cada grupo que se sitúan en el límite de la línea teórica. Sin embargo, en el gráfico correspondiente a la dificultad baja se aprecian algunos datos desviados de la línea teórica, aunque se mantienen cercanos a ésta. Por lo tanto, puede considerarse que los datos siguen aproximadamente una distribución normal. No obstante, para proceder con cautela y minimizar el riesgo de cometer un error tipo I, se adoptará un nivel de significación más exigente: $\alpha = 0.025$.
+
+4. **La matriz de varianzas-covarianzas es esférica.** Este supuesto establece que las varianzas de las diferencias entre todos los pares de niveles de las medidas repetidas deben ser iguales. Dado que la verificación de este supuesto resulta compleja de realizar manualmente, se empleará la prueba de esfericidad de Mauchly integrada en la función ezANOVA() durante la ejecución del análisis. Por lo tanto, por el momento se asume que este supuesto se cumple.
+
+Dado que se verifican los cuatro supuestos, es posible realizar la prueba ANOVA de medidas repetidas. Para ello, se utilizará la función ezANOVA(), como se mencionó durante la verificación del cuarto supuesto.
+
+```{r, warning=FALSE}
+#Se importa la libreria necesaria para realizar la prueba ANOVA
+library(ez)
+
+#Se realiza y se muestra el procedimiento ANOVA
+prueba_ez <- ezANOVA(data = datos_filtrados, dv= tiempo, wid = .(id), within = dificultad)
+print(prueba_ez)
+
+```
+
+Antes de examinar el resultado de la prueba ANOVA, se verifica que el cuarto supuesto efectivamente se cumpla. Al revisar la sección titulada `Mauchly's Test for Sphericity`, puede apreciarse que la prueba no resulta significativa ($W = 0.994; p = 0.532$), por lo que no es posible rechazar la hipótesis nula de esfericidad de los datos. Para confirmar este resultado, se examina la corrección de esfericidad, donde se utilizará la corrección de Greenhouse-Geisser dado que $\epsilon > 0.75$; más específicamente $\epsilon = 0.994$. Esto confirma que el supuesto de esfericidad se cumple de manera casi perfecta y valida nuestra suposición inicial.
+
+Al examinar los resultados de la prueba ANOVA, puede observarse en la tabla que el valor p es extremadamente inferior al nivel de significancia $\alpha$ establecido ($1.45 \times 10^{-32} < 0.025$). Por lo tanto, se rechaza la hipótesis nula en favor de la hipótesis alternativa. En consecuencia, puede afirmarse con un 97.5\% de confianza que los tiempos requeridos por los usuarios para formular consultas que resuelvan problemas difieren significativamente para al menos un par de niveles de dificultad estudiados.
+
+Dado que se rechazó la hipótesis nula, existe evidencia de que al menos uno de los niveles de dificultad presenta tiempos de formulación de consultas significativamente diferentes a los demás. Por lo tanto, es necesario realizar un procedimiento post-hoc para identificar entre qué niveles de dificultad específicos se encuentran estas diferencias.
+
+```{r}
+g2 <- ezPlot(data = datos_filtrados, dv = tiempo, wid = .(id), within = dificultad,
+             y_lab = "Tiempo promedio", x = dificultad)
+print(g2)
+```
+
+En el gráfico se observa una disminución consistente del tiempo promedio a medida que disminuye la dificultad. El nivel de dificultad Alta muestra el mayor tiempo promedio, separándose de manera evidente de los niveles Media y Baja, que presentan tiempos considerablemente menores.
+
+Aunque visualmente se aprecia una diferencia clara entre los tres niveles de dificultad, especialmente entre la condición Alta respecto de Baja y Media por lo que, como se mencionó anteriormente, es necesario aplicar un análisis post-hoc para determinar si estas diferencias son estadísticamente significativas, ya que el gráfico por sí solo no permite concluirlo con total certeza.
+
+La prueba post-hoc elegida una prueba de contraste, ya que compara todos pares de grupos (niveles de dificultad en este caso). Sin embargo, esta prueba no puede aplicarse directamente. Antes de empezar, cabe mencionar que se utilziará el mismo $\alpha$ que se utilizó para el procedimiento ANOVA, el cual es de 0.025. Con el $\alpha$ establecido, primero se debe calcular las medias marginales estimadas (EMM) de las muestras ya que coinciden numéricamente con las medias muestrales observadas en los datos. El valor de calcularlas en este caso es que se obtienen de manera consistente junto con sus errores estándar e intervalos de confianza, que necesitamos para realizar la comparacion post-hoc.
+
+```{r, message=FALSE}
+#Se importa la libreria necesaria para calcular el EMM y realizar el procedimiento post-hoc
+library (emmeans)
+
+# Nivel de significancia
+alfa <- 0.025
+
+# Ajuste del modelo para emmeans (ANOVA de medidas repetidas)
+modelo <- aov(tiempo ~ dificultad + Error(id/dificultad), data = datos_filtrados)
+
+# Cálculo de medias estimadas
+medias_estimada <- emmeans(modelo, ~ dificultad)
+print(summary(medias_estimada, infer = TRUE, level = 1 - alfa, null = mean(datos_filtrados$tiempo)))
+```
+
+Una vez obtenidas las EMM, se procede a realizar los diferentes contrastes mediante la función contrast(x, method) con las correcciones HSD de Tukey.
+
+```{r}
+# Procedimiento post-hoc HSD de Tukey
+hsd <- contrast(
+  medias_estimada,
+  method = "pairwise",
+  level = 1 - alfa,      # nivel de confianza 97.5%
+  adjust = "tukey"       # corrección Tukey HSD
+)
+
+cat("\nProcedimiento HSD de Tukey\n")
+print(summary(hsd, infer = TRUE))
+
+```
+
+El procedimiento post-hoc HSD de Tukey, aplicado con un nivel de confianza del 97.5% ($\alpha$ = 0.025), reveló diferencias significativas entre los tres niveles de dificultad analizados. En particular, se observó que:
+
+Alta vs Baja: la diferencia estimada entre medias fue de 5.71 segundos, con un intervalo de confianza del 97.5% entre 3.82 y 7.60, y un valor p ajustado < 0.0001, indicando una diferencia significativa.
+
+Alta vs Media: la diferencia estimada fue de 9.54 segundos, con un intervalo entre 7.66 y 11.43 y valor p < 0.0001, mostrando nuevamente una diferencia significativa.
+
+Baja vs Media: la diferencia estimada fue de 3.83 segundos, con un intervalo entre 1.95 y 5.72, y un valor p < 0.0001, indicando también una diferencia significativa.
+
+Dado que ninguno de los intervalos de confianza incluye el valor 0, y todos los valores p son mucho menores al nivel de significancia α = 0.025, se concluye que los tres niveles de dificultad difieren significativamente entre sí en el tiempo requerido para formular una consulta.
+
+En síntesis, el análisis post-hoc confirma que a mayor dificultad del problema, mayor es el tiempo que los participantes requieren para generar una consulta de búsqueda, y esta relación se presenta de forma significativa entre todos los pares de niveles.
+

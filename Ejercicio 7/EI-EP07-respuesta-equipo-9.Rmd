@@ -1,0 +1,333 @@
+---
+title: "EI-EP07-respuesta-equipo-9"
+output: html_document
+date: "2025-11-29"
+---
+En el trabajo de título de una estudiante del DIINF se reportan tiempos de ejecución (en milisegundos) y la cercanía con la solución óptima (en por ciento) de la mejor solución encontrada con tres versiones de un algoritmo genético para resolver instancias del problema del vendedor viajero disponibles en repositorios públicos. Ahora debe enfrentar el análisis de estos datos, por que está solicitando ayuda de las y los estudiantes de Estadística Inferencial.
+
+Para comenzar, se muestra una tabla informativa de los datos a trabajar.
+
+```{r setup}
+#Se importa la libreria para hacer la tabla
+library(knitr)
+library(kableExtra)
+
+#Se crea una tabla para mostrar las variables y su descripción
+tabla_variables <- data.frame(Variable = c("instancia", "n.nodos", "n.aristas", "tiempo.(A,B,C)", "mejor.(A,B,C)"),
+                              Descripcion = c("Número de instancia ejecutada", "Cantidad de nodos del problema", "Cantidad de aristas del problema", "Tiempo (en milisegundos) que se demora la versión A, B y C del algoritmo genético en resolver el problema", "Cercanía con la solución optima (en porcentaje) de la mejor solución encontrada entre las tres versiones del algoritmo genético"))
+
+#Se muestra la tabla
+kable(tabla_variables, align = c("c", "l")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+                full_width = FALSE,
+                position = "center") %>%
+  row_spec(0, bold = TRUE, color = "white", background = "black") %>%
+  column_spec(1, bold = TRUE, color = "blue")
+```
+
+Luego, se importan las muestras utilizando read.csv() ya que se debe trabajar sobre ellos. Posteriormente, se muestran algunas filas del conjunto de datos para familiarizarse con la estructura de la información con la que se trabajará.
+
+```{r}
+#Se importan las muestras
+datos <- read.csv("EP07 Datos.csv")
+
+#Se muestran unos pocos datos
+head(datos)
+```
+
+Después, se verifica el tipo de cada variable del conjunto para comprobar que todas correspondan al tipo de dato correcto.
+
+```{r, message=FALSE}
+#Se importa la libreria necesaria para verificar los datos
+library(dplyr)
+
+#Se verifican las muestras
+glimpse(datos)
+```
+
+Como se puede observar, los tipos de variable identificados son los adecuados para cada una de estas y ya que no existen variables categoricas se dejan como están. Ya con los datos mostrados y verificado su tipo de variable, se procede a responder las siguientes preguntas.
+
+##### 1. Observando los datos, la memorista sospecha que hay diferencias significativas en el tiempo de ejecución entre las versiones A y B del algoritmo cuando las instancias tienen 45 o más nodos. ¿Los datos respaldan la intuición de la memorista? Para responder, filtren los datos para tener las instancias con 45 o más nodos y seleccionen las columnas de los tiempos de ejecución de las versiones A y B en formato ancho. Usando como semilla el valor 71, obtenga muestras aleatorias independientes de 23 tiempos registrados por la versión A y 22 tiempos registrados por la versión B del algoritmo. Realicen un análisis estadístico pertinente (enunciar hipótesis, revisar condiciones, seleccionar pruebas ómnibus y post-hoc según corresponda) para responder la pregunta planteada, utilizando pruebas no paramétricas de ser necesario.
+
+Primero se filtran los datos para obtener los que tiene más de 45 nodos. Luego, como no queremos que los tiempos de la versión A provengan de la misma instancia que los tiempos de la versión B, se coloca una semilla (la semilla 71 en este caso), se toma una submuestra de 45 instancias diferentes (la suma de la cantidad de muestra que piden para cada versión) y se le asigna aleatoriamente 23 de estas muestras a la instancia de la versión A y las 22 restantes a la instancia de la versión B. Finalmente filtramos cada instancia por su respectivo tiempo que se pide, con esto, nos aseguramos que ninguno de los tiempos de A y B provengan de la misma instancia.
+
+```{r}
+#Se filtran las instancias con n.nodos >= 45
+datos_filtrados <- subset(datos, n.nodos >= 45)
+
+#Se establece la semilla y se obtienen INSTANCIAS, no tiempos
+set.seed(71)
+instancias_muestra <- sample(1:nrow(datos_filtrados), 45)  # 23 + 22 = 45
+
+#Se asignan aleatoriamente las instancia a cada grupo
+instancias_A <- sample(instancias_muestra, 23)
+instancias_B <- setdiff(instancias_muestra, instancias_A)
+
+#Se extrae UN SOLO tiempo por instancia (los tiempos de las versiones correspondientes)
+tiempos_A <- datos_filtrados[instancias_A, "tiempo.A"]
+tiempos_B <- datos_filtrados[instancias_B, "tiempo.B"]
+```
+
+Una vez filtrado los datos, se procede a plantear las hipótesis.
+
+$H_0$: No hay diferencia en los tiempos de ejecución entre las versiones A y B. (Los valores de los tiempos de ejecución se distribuyen de igual forma)
+
+$H_A$: Hay diferencia en los tiempos de ejecución entre las versiones A y B. (Las distribuciones de los tiempos de ejecución son distintos)
+
+Ya definidas las hipótesis, se procede a verificar las condiciones para realizar una prueba parametrica t de Student con muestras independientes.
+
+1. **Las observaciones elegidas son independientes entre sí.** Las muestras fueron obtenidas aleatoriamente y claramente representan menos del 10% de la población de muestras que se pueden obtener, el proceso de obtención de estas fue explicado en un apartado anterior. Además, debido a que las muestras son tiempos que se tardan las versiones A y C de un algoritmo que resuelve el problema del vendedor viajero, se puede asumir que el tiempo de resolución de una versión no es afectado por la otra versión. Por lo que se cumple esta condición.
+
+2. **Las observaciones provienen de una población con distribución cercana a la normal.** Para verificar esta condición se realizará la prueba de Shapiro-Wilk a cada tiempo, debido a que la cantidad de muestras son menor a 50 cada una.
+
+```{r}
+#Se verifica normalidad utilizando Shapiro Test
+shapiro.test(tiempos_A)
+shapiro.test(tiempos_B)
+```
+
+Como se puede observar en los resultados, los tiempos de la versión A no cumple con la normalidad ($p = 0.006 < 0.05$), por lo que se realizará la prueba de suma de rangos de Wilcoxon. Las condiciones para poder realizarla son:
+
+1. **Las muestras son independientes.** Como se explicó en la verificación de la condición 1 para la prueba t de Student con muestras independientes, las muestras son independientes, por ende, esta condición se cumple.
+
+2. **Las observaciones son al menos ordinales.** Los tiempos de ejecución (las variables que tenemos) son datos cuantitativos continuos los cuales estan ordenados desde el 0 hasta el infinito y de menor a mayor, por ejemplo, un tiempo de 1 milisegundo es menor a un tiempo de 2 milisegundos. Debido a esto, se cumple esta condición.
+
+Una vez definidas las hipótesis y verificadas las condiciones, se procede a realizar la prueba de Wilcoxon-Mann-Whitney.
+
+```{r}
+#Se define el alfa de la prueba
+alpha <- 0.05
+
+#Se realiza la prueba de Wilcoxon-Mann-Whitney
+prueba <- wilcox.test(tiempos_A, tiempos_B, alternative = "two.sided", conf.level = 1-alfa)
+print(prueba)
+```
+
+Al observar los resultados de la prueba de Wilcoxon-Mann-Whitney, puede observarse que el valor de p es mayor al nivel de significancia $\alpha$ establecido ($0.2838 > 0.05$). En consecuencia, no hay evidencia suficiente para poder rechazar la hipótesis nula en favor de la hipótesis alternativa. Por lo que podemos concluir con un 95% de confianza que no existen diferencias significativas en los tiempos de ejecución entre las versiones A y B del algoritmo cuando las instancias tienen 45 o más nodos.
+
+##### 2. La memorista también sospecha que, al comparar las mismas instancias de iguales características, las mejores soluciones encontradas por las versiones A y C tienen rendimientos distintos. ¿Estará en lo cierto? Para responder, filtren los datos para tener las instancias con 45 o más nodos y seleccionen las columnas con el mejor rendimiento de las versiones A y C en formato ancho. Usando como semilla el valor 54, obtengan una muestra aleatoria de 20 instancias. Realicen un análisis estadístico pertinente (enunciar hipótesis, revisar condiciones, seleccionar pruebas ómnibus y post-hoc según corresponda) para responder la pregunta planteada, utilizando pruebas no paramétricas de ser necesario.
+
+Como los datos ya estan cargados, simplemente se filtra la variable que contiene los datos sin modificar, la cual está con el nombre de datos. Luego, se obtienen las 20 instancias aleatorias que se usarán para ambas versiones y se obtienen los rendimientos de cada una.
+
+```{r}
+#Se filtran las instancias con n.nodos >= 45
+datos_filtrados2 <- subset(datos, n.nodos >= 45)
+
+#Se establece la semilla y se obtienen las instancias
+set.seed(54)
+instancias_muestra2 <- sample(1:nrow(datos_filtrados2), 20)
+
+#Se extraen los rendimientos de las versiones A y C para las mismas instancias seleccionadas
+rendimientos_A <- datos_filtrados2[instancias_muestra2, "mejor.A"]
+rendimientos_C <- datos_filtrados2[instancias_muestra2, "mejor.C"]
+```
+
+Una vez filtrado los datos, se procede a plantear las hipótesis.
+
+$H_0$: Las mismas mejores soluciones no tienen un rendimiento distinto en las versiones A y C del algoritmo. (La distribución de los rendimientos tienen la misma localización)
+
+$H_A$: El rendimiento de la versión A es diferente al rendimiento de la versión C para las mismas mejores soluciones. (La distriución del rendimiento de la versión A tiene distinta localización que la distribución del rendimiento de la versión C)
+
+Ya definidas las hipótesis, se procede a verificar las condiciones para realizar una prueba parametrica t de Student con muestras apareadas.
+
+1. **Los pares de observaciones son independientes entre sí.** Las muestras fueron obtenidas aleatoriamente y claramente representan menos del 10% de la población de muestras que se pueden obtener, el proceso de obtención de estas fue explicado en un apartado anterior. Además, debido a que las muestras son los rendimientos de las mejores soluciones encontradas de las versiones A y C de un algoritmo que resuelve el problema del vendedor viajero, se puede asumir que los rendimientos de las mejores soluciones encontradas de una versión no es afectado por la otra versión dentro de la misma instancia. Por lo que se cumple esta condición.
+
+2. **Las diferencias de observaciones apareadas siguen una distribución cercana a la normal.** Para verificar esta condición, se realizará una prueba de Shapiro-Wilk a la diferencia de los rendimientos de la versión A y C.
+
+```{r}
+#Se obtiene la diferencia de rendimientos de A y C
+diferencia <- rendimientos_A - rendimientos_C
+
+#Se verifica normalidad utilizando Shapiro Test
+shapiro.test(diferencia)
+```
+
+Como se puede observar en los resultados de la prueba, los rendimientos sí cumplen la condicion de normalidad ($p = 0.606 > 0.05$), por lo que se puede realizar la prueba t de Student para muestras pareadas, la que se procede a realizar ahora mismo.
+
+```{r}
+#Se define el alfa de la prueba
+alpha <- 0.05
+
+#Se realiza la prueba t de Student para muestras pareadas
+prueba_t <- t.test(rendimientos_A, rendimientos_C, paired = TRUE, conf.level = alpha)
+print(prueba_t)
+```
+
+Al observar los resultados de la prueba t de Student para muestras pareadas, puede observarse que el valor de p es mayor al nivel de significancia $\alpha$ establecido ($0.1336 > 0.05$). En consecuencia, no hay evidencia suficiente para poder rechazar la hipótesis nula en favor de la hipótesis alternativa. Por lo que podemos concluir con un 95% de confianza que las mismas mejores soluciones no tienen un rendimiento distinto en las versiones A y C del algoritmo.
+
+##### 3. La memorista sospecha que hay diferencias significativas en el tiempo de ejecución entre las versiones del algoritmo cuando las instancias de prueba tienen 70 o más nodos. ¿Los datos respaldan la intuición de la memorista? Para responder, filtren los datos para tener las instancias con 70 o más nodos y seleccionen las columnas con los tiempos de ejecución registrados (en formato ancho). Usando como semilla el valor 31, obtengan muestras aleatorias independientes de 17, 13 y 15 tiempos registrados por las versiones A, B y C, respectivamente. Realicen un análisis estadístico pertinente (enunciar hipótesis, revisar condiciones, seleccionar pruebas ómnibus y post-hoc según corresponda) para responder la pregunta planteada, utilizando pruebas no paramétricas de ser necesario.
+
+Al igual que en la pregunta 2, al estar los datos ya cargados simplemente se filtra la variable que contiene los datos sin modificar. El procedimiento posterior será parecido al de la pregunta 1, con la excepción de que ahora se agrega el tiempo de ejecución de la versión C. Osea se coloca una semilla (la semilla 31 en este caso), se toma una submuestra de 45 instancias diferentes (la suma de la cantidad de muestra que piden para cada versión) y se le asigna aleatoriamente 17 de estas muestras a la instancia de la versión A, 13 a la instancia de la versión B y las 15 restantes a la instancia de la versión C. Finalmente filtramos cada instancia por su respectivo tiempo que se pide, con esto, nos aseguramos que ninguno de los tiempos de A, B y C provengan de la misma instancia.
+
+```{r}
+#Se filtran las instancias con n.nodos >= 45
+datos_filtrados3 <- subset(datos, n.nodos >= 70)
+
+#Se establece la semilla y se obtienen INSTANCIAS, no tiempos
+set.seed(31)
+instancias_muestra3 <- sample(1:nrow(datos_filtrados3), 45)  # 17 + 13 + 15 = 45
+
+#Se asignan aleatoriamente las instancia a cada grupo
+instancias_A2 <- sample(instancias_muestra3, 17)
+
+#Se obtienen las instancias que no tiene instancias_A2
+instancias_SinA <- setdiff(instancias_muestra3, instancias_A2)
+
+#Se obtienen el resto de instancias
+instancias_B2 <- sample(instancias_SinA, 13)
+instancias_C <- sample(setdiff(instancias_SinA, instancias_B2), 15)
+
+#Se extrae UN SOLO tiempo por instancia (los tiempos de las versiones correspondientes)
+tiempos_A2 <- datos_filtrados[instancias_A2, "tiempo.A"]
+tiempos_B2 <- datos_filtrados[instancias_B2, "tiempo.B"]
+tiempos_C <- datos_filtrados[instancias_C, "tiempo.C"]
+```
+
+Una vez filtrado los datos, se procede a plantear las hipótesis.
+
+$H_0$: No hay diferencia en los tiempos de ejecución entre A, B y C. (Las distribuciones del tiempo de ejecución de cada versión son las mismas)
+
+$H_A$: Al menos una versión tiene tiempos de ejecución diferentes. (Las distribuciones del tiempo de ejecución es diferente para al menos una versión)
+
+Ya definidas las hipótesis, se procede a verificar las condiciones para realizar el procedimiento ANOVA de una vía para k > 2 muestras independientes.
+
+1. **La escala con que se mide la variable dependiente tiene propiedades de una escala de intervalos iguales.** Dado que la variable dependiente es el tiempo medido en milisegundos, esta corresponde a una escala de intervalos iguales (como toda magnitud física) a no ser que se especifique lo contrario. En este caso, no se indica lo contrario, por lo que los intervalos son iguales y equivalentes a 1 milisegundo.
+
+2. **Las muestras son obtenidas de manera aleatoria e independiente desde las poblaciones de origen.** Las muestras fueron obtenidas aleatoriamente y claramente representan menos del 10% de la población de muestras que se pueden obtener, el proceso de obtención de estas fue explicado en un apartado anterior. Además, debido a que las muestras son tiempos que se tardan las versiones A, B y C de un algoritmo que resuelve el problema del vendedor viajero, se puede asumir que el tiempo de resolución de una versión no es afectado por la otra versión. Por lo que se cumple esta condición.
+
+3. **Se puede suponer razonablemente que las poblaciones de origen siguen una distribución normal.** Para verificar esta condición se realizará la prueba de Shapiro-Wilk a cada tiempo, debido a que la cantidad de muestras son menor a 50 cada una.
+
+```{r}
+#Se verifica normalidad utilizando Shapiro Test
+shapiro.test(tiempos_A2)
+shapiro.test(tiempos_B2)
+shapiro.test(tiempos_C)
+```
+
+Como se puede observar en los resultados, los tiempos de las versiones B y C no cumplen con la normalidad ($p = 0.034 < 0.05$ para B y $p = 0.039 < 0.05$ para C), por lo que se realizará la prueba de Kruskal-Wallis. Las condiciones para poder realizarla son:
+
+1. **La escala de la variable dependiente debe ser, a lo menos, ordinal.** Los tiempos de ejecución (las variables que tenemos) son datos cuantitativos continuos los cuales estan ordenados desde el 0 hasta el infinito y de menor a mayor, por ejemplo, un tiempo de 1 milisegundo es menor a un tiempo de 2 milisegundos. Debido a esto, se cumple esta condición.
+
+2. **Las observaciones son independientes entre sí.** Como se explicó en la verificación de la condición 2 para el procedimiento ANOVA de una vía para k > 2 muestras independientes, las muestras son independientes, por ende, esta condición se cumple.
+
+3. **La variable independiente debe tener a lo menos dos niveles.** Esta condición se cumple, ya que la variable independiente tiene 3 niveles (Versión A, Versión B y Versión C), por lo que esta condición también se cumple.
+
+Una vez definidas las hipótesis y verificadas las condiciones, se procede a realizar la prueba de Kruskal-Wallis. Cabe destacar que el $\alpha$ que se usará para comparar el p obtenido por la prueba de Kruskal-Wallis será de 0.05.
+
+```{r}
+#Se combinan los datos para Kruskal-Wallis
+tiempos <- c(tiempos_A2, tiempos_B2, tiempos_C)
+grupos <- factor(c(rep("Versión A", 17), rep("Versión B", 13), rep("Versión C", 15)))
+
+#Se realiza la prueba de Kruskal-Wallis
+prueba_omnibus <- kruskal.test(tiempos ~ grupos)
+print(prueba_omnibus)
+```
+
+Al observar los resultados de la prueba de Kruskal-Wallis, puede observarse que el valor de p es claramente mayor al nivel de significancia $\alpha$ establecido ($0.4869 > 0.05$). En consecuencia, no hay evidencia suficiente para poder rechazar la hipótesis nula en favor de la hipótesis alternativa. Por lo que podemos concluir con un 95% de confianza que no existen diferencias significativas en los tiempos de ejecución entre las versiones A, B y C del algoritmo cuando las instancias tienen 70 o más nodos.
+
+
+##### 4. La memorista también sospecha que, al comparar las mismas instancias con iguales características, las mejores soluciones encontradas por las diferentes versiones del algoritmo tienen rendimientos distintos. ¿Estará en lo cierto? Para responder, filtren los datos para tener las instancias con 70 o más nodos y seleccionen las columnas con los mejores rendimientos registrados. Usando como semilla el valor 71, obtengan una muestra aleatoria de 21 instancias. Realicen un análisis estadístico pertinente (enunciar hipótesis, revisar condiciones, seleccionar pruebas ómnibus y post-hoc según corresponda) para responder la pregunta planteada, utilizando pruebas no paramétricas de ser necesario.
+
+Como los datos ya estan cargados, simplemente se filtra la variable que contiene los datos sin modificar, la cual está con el nombre de datos. Luego, se obtienen las 21 instancias aleatorias que se usarán para las tres versiones y se obtienen los rendimientos de cada una.
+
+```{r}
+#Se filtran las instancias con n.nodos >= 70
+datos_filtrados4 <- subset(datos, n.nodos >= 70)
+
+#Se establece la semilla y se obtienen las instancias
+set.seed(71)
+instancias_muestra4 <- sample(1:nrow(datos_filtrados4), 21)
+
+#Se extraen los rendimientos de las versiones A, B y C para las mismas instancias seleccionadas
+rendimientos_A2 <- datos_filtrados4[instancias_muestra4, "mejor.A"]
+rendimientos_B <- datos_filtrados4[instancias_muestra4, "mejor.B"]
+rendimientos_C2 <- datos_filtrados4[instancias_muestra4, "mejor.C"]
+```
+
+Una vez filtrado los datos, se procede a plantear las hipótesis. 
+
+$H_0$: Las mismas mejores soluciones no tienen un rendimiento distinto en las versiones A, B y C del algoritmo.
+
+$H_A$: Al menos uno de los rendimientos es diferente para las mismas mejores soluciones.
+
+Ya definidas las hipótesis, se procede a verificar las condiciones para realizar una prueba ANOVA para muestras correlacionadas.
+
+1. **La escala con que se mide la variable dependiente tiene las propiedades de una escala de intervalos iguales.** Dado que la variable dependiente es el rendimiento medido en porcentaje, esta corresponde a una escala de intervalos iguales debido a estar en la escala de razón (Tiene distancias iguales y un cero absoluto que significa ausencia de la variable) a no ser que se especifique lo contrario. En este caso, no se indica lo contrario, por lo que los intervalos son iguales y equivalentes a 0.01%.
+
+2. **Las mediciones son independientes al interior de cada grupo.** Las muestras fueron obtenidas aleatoriamente y claramente representan menos del 10% de la población de muestras que se pueden obtener, el proceso de obtención de estas fue explicado en un apartado anterior. Además, debido a que las muestras son los rendimientos de las mejores soluciones encontradas de las versiones A, B y C de un algoritmo que resuelve el problema del vendedor viajero, se puede asumir que los rendimientos de las mejores soluciones encontradas de una versión no es afectado por la otra versión dentro de la misma instancia. Por lo que se cumple esta condición.
+
+3. **Se puede suponer razonablemente que las poblaciones de origen siguen una distribución normal.** Para verificar esta condición, se realizará una prueba de Shapiro-Wilk a la diferencia de los rendimientos de la versión A y B, A y C y B y C.
+
+```{r}
+#Se obtiene la diferencia de rendimientos de A y B
+diferencia_AB <- rendimientos_A2 - rendimientos_B
+
+#Se obtiene la diferencia de rendimientos de A y C
+diferencia_AC <- rendimientos_A2 - rendimientos_C2
+
+#Se obtiene la diferencia de rendimientos de B y C
+diferencia_BC <- rendimientos_B - rendimientos_C2
+
+#Se verifica normalidad utilizando Shapiro Test
+shapiro.test(diferencia_AB)
+shapiro.test(diferencia_AC)
+shapiro.test(diferencia_BC)
+```
+
+Como se puede observar en los resultados, los rendimientos de las versiones A y C no cumplen con la normalidad ($p = 0.0007 < 0.05$ para A y $p = 0.0006 < 0.05$ para C), por lo que se realizará la prueba de Friedman. Las condiciones para poder realizarla son:
+
+1. **La escala de la variable dependiente debe ser, a lo menos, ordinal.** Los rendimientos de las mejores soluciones encontradas por las diferentes versiones del algoritmo están en porcentajes, los cuales son datos cuantitativos continuos y estan ordenados de 0% a 100% y de menor a mayor, por ejemplo, un rendimiento de un 92%% es menor al rendimiento de un 96%. Debido a esto, se cumple esta condición.
+
+2. **Las observaciones son una muestra aleatoria e independiente de la población.** Como se explicó en la verificación de la condición 2 para la prueba ANOVA para muestras correlacionadas, las muestras son independientes, por ende, esta condición se cumple.
+
+3. **La variable independiente debe ser categórica y tener a lo menos tres niveles.** Esta condición se cumple, ya que la variable independiente tiene 3 niveles (Versión A, Versión B y Versión C), por lo que esta condición también se cumple.
+
+Una vez definidas las hipótesis y verificadas las condiciones, se procede a realizar la prueba de Friedman. Cabe destacar que el $\alpha$ que se usará para comparar el p obtenido por la prueba de Friedman. será de 0.05.
+
+```{r}
+#Se combinan los datos para Friedman
+rendimientos <- c(rendimientos_A2, rendimientos_B, rendimientos_C2)
+grupos <- factor(c(rep("Versión A", 21), rep("Versión B", 21), rep("Versión C", 21)))
+instancia <- factor(rep(1:21, 3))
+
+datos_friedman <- data.frame(instancia, grupos, rendimientos)
+
+prueba_friedman <- friedman.test(rendimientos ~ grupos | instancia, data = datos_friedman)
+print(prueba_friedman)
+```
+
+Al observar los resultados de la prueba de Friedman, puede observarse que el valor de p es claramente menor al nivel de significancia $\alpha$ establecido ($1.037 \times 10^{-5} < 0.05$). Por lo tanto, se rechaza la hipótesis nula en favor de la hipótesis alternativa. En consecuencia, puede afirmarse con un 95% de confianza que al menos uno de los rendimientos es diferente para las mismas mejores soluciones.
+
+Dado que se rechazó la hipótesis nula, existe evidencia de que al menos uno de los niveles de dificultad presenta tiempos de formulación de consultas significativamente diferentes a los demás. Por lo tanto, es necesario realizar un procedimiento post-hoc para identificar entre qué niveles de dificultad específicos se encuentran estas diferencias.
+
+```{r}
+#Se importan las librerias necesarias
+library(broom) 
+library(dplyr)
+
+#Se define el alfa a suar
+alfa = 0.5
+
+#Se realiza la prueba post-hoc con la correccion de Holm-Bonferroni
+post_hoc <- pairwise.wilcox.test(datos_friedman[["rendimientos"]], datos_friedman[["grupos"]],
+                                 p.adjust.method = "holm",
+                                 paired = TRUE , exact = FALSE)
+  
+#Se crea una tabla para mostrar los resultados
+post_hoc <- tidy(post_hoc) |> rename(Grupo1 = group2, Grupo2 = group1) |>
+    arrange(Grupo1) |> relocate(Grupo1)
+
+cat("Resultados del análisis post-hoc:\n")
+cat(paste0(" ", kable(post_hoc, digits = 3, format = "simple" )), sep = "\n")
+```
+
+El procedimiento post-hoc con la correccion de Holm-Bonferroni, aplicado con un nivel de confianza del 95% ($\alpha$ = 0.05), reveló diferencias significativas entre los rendimientos con las mismas mejores soluciones para las tres versiones. En particular, se observó que:
+
+Versión A vs Versión B: El valor de p es tan pequeño que se redondeó a 0.000, por lo que esta diferencia es la más significativa entre las tres comparaciones.
+
+Versión A vs Versión C: El valor de p es 0.044, el cual está muy cerca de $\alpha$, por lo que esta diferencia es la menos significativa entre las tres comparaciones.
+
+Versión B vs Versión C: El valor de p es 0.004, el cual está lejos de $\alpha$, pero no tanto como la difenrencia entre A y B, por lo que esta diferencia es ampliamente significativa.
+
+En síntesis, el análisis post-hoc confirma las sospechas de la memorista, las mejores soluciones encontradas por las diferentes versiones del algoritmo tienen rendimientos distintos.
