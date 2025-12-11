@@ -30,3 +30,107 @@ data = matriz en formato largo
 pairwise.wilcox.test(paired = TRUE)
 ```
 
+```{r}
+# Construir los datos y la tabla de contingencia
+Vacuna <- c(rep("Argh", 6), rep("Grrr", 11))
+Resultado <- c(rep("Humano", 12), rep("Vampiro", 5))
+Resultado <- factor(Resultado, levels = c("Vampiro", "Humano"))
+datos <- data.frame(Resultado, Vacuna)
+tabla <- xtabs(~., datos)
+print(tabla)
+
+# Aplicar la prueba exacta de Fisher a la tabla de contingencia
+fisher_1 <- fisher.test(tabla)
+cat("\n")
+cat("Prueba exacta de Fisher usando la tabla de contingencia\n")
+cat("-----------------------------------------------\n")
+print(fisher_1)
+
+# Aplicar la prueba exacta de Fisher directamente a las muestras
+fisher_2 <- fisher.test(Vacuna, Resultado)
+cat("Prueba exacta de Fisher usando las muestras:\n")
+cat("-----------------------------------------------\n")
+print(fisher_2)
+
+```
+
+```{r}
+# Crear la tabla de contingencia
+programadores <- c(42, 56, 51, 27, 24)
+programadoras <- c(25, 24, 27, 15, 9)
+tabla <- as.table(rbind(programadores, programadoras))
+dimnames(tabla) <- list(sexo = c("programadores", "programadoras"),
+                        lenguajes = c("C", "Java", "Python", "Ruby", "Otro"))
+print(tabla)
+
+# Definir condiciones y el nivel de significación
+minima_frec_esperada <- 5
+alfa <- 0.05
+
+# Obtener las frecuencias esperadas
+sumas_filas <- apply(tabla, 1, sum)
+sumas_columnas <- apply(tabla, 2, sum)
+suma_total <- sum(tabla)
+esperadas <- outer(sumas_filas, sumas_columnas, "*") / suma_total
+esperadas <- round(esperadas, 1)
+dimnames(esperadas) <- list(sexo = c("programadores", "programadoras"),
+                            lenguajes = c("C", "Java", "Python", "Ruby", "Otro"))
+
+# Realizar prueba chi-cuadrado de homogeneidad
+prueba <- chisq.test(tabla)
+
+# Mostrar la tabla
+cat("Tabla de contingencia:\n")
+cat("-----------------------\n")
+print(tabla)
+
+# Mostrar las frecuencias esperadas y si hay grupos que no cumplen con el mínimo
+cat("\nFrecuencias esperadas:\n")
+cat("-----------------------\n")
+print(esperadas)
+cat("Frecuencias esperadas bajo", minima_frec_esperada)
+cat(": ", sum(esperadas < minima_frec_esperada), "\n")
+
+# Mostrar el resultado de la prueba
+cat("\nResultado de la prueba chi-cuadrado de homogeneidad:\n")
+cat("------------------------------------------------------")
+print(prueba)
+
+```
+
+```{r}
+# Crear la tabla de contingencia
+nomina <- c(236, 78, 204, 76, 66)
+muestra <- c(17, 9, 14, 10, 5)
+tabla <- as.table(rbind(nomina, muestra))
+dimnames(tabla) <- list(grupo = c("Nómina", "Muestra"),
+                        lenguajes = c("C", "Java", "Python", "Ruby", "Otro"))
+print(tabla)
+
+# Definir condiciones y el nivel de significación
+minima_frec_esperada <- 5
+alfa <- 0.05
+
+# Realizar prueba chi-cuadrado de bondad de ajuste
+prueba <- chisq.test(tabla)
+
+# Mostrar la tabla
+cat("Tabla de contingencia:\n")
+cat("-----------------------\n")
+print(tabla)
+
+# Mostrar las frecuencias esperadas
+cat("\nFrecuencias esperadas:\n")
+cat("-----------------------\n")
+esperadas <- round(prueba[["expected"]], 1)
+print(esperadas)
+cat("Frecuencias esperadas bajo", minima_frec_esperada)
+cat(": ", sum(esperadas < minima_frec_esperada), "\n")
+
+# Mostrar el resultado de la prueba
+cat("\nResultado de la prueba chi-cuadrado de bondad de ajuste:\n")
+cat("---------------------------------------------------------")
+print(prueba)
+
+```
+
