@@ -7,10 +7,26 @@ output: html_document
 
 ```{r setup, warning=FALSE}
 #Se importa la libreria
+library(ggplot2)
+library(TeachingDemos)
+library(pwr)
+library(rstatix)
+library(lsr)
+library(effsize)
+library(chisq.posthoc.test)
+library(rcompanion)
+library(RVAideMemoire)
+library(ez)
+library(effectsize)
+library(DescTools)
 library(WebPower)
-
-#Se realiza la prueba
-poder <- wp.rmanova(n = 16, ng = 1, nm = 3, f = 0.943, nscor = 0.855, type = 1)
-
+library(emmeans)
+library(exactRankTests)
+#Prueba no param para anova correlacionada
+friedman.test(formula, data)
+formula = <var_dep> ~ <var_ind> | <id_caso> #id_caso = id de la muestra (se puede usar rep(1:n, n° de var ind))
+data = matriz en formato largo
+#Post hoc para eso
+pairwise.wilcox.test(paired = TRUE)
 ```
 
